@@ -13,9 +13,11 @@ handlers:
 
 - url: /_ah/spi/.*
   script: tasktimer_api.app
+  secure: always
 
 - url: /.*
   script: app.app
+  secure: always
 
 builtins:
 - remote_api: on
