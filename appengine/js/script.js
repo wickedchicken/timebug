@@ -55,12 +55,13 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
            'finished':true
           }).execute(function(resp) {
         console.log(resp);
-        $scope.time = 0.0;
-        $scope.actual_mins = 0.0;
-        $scope.actual_secs = 0.0;
-        $scope.estimated = 0.0;
-        $scope.name = '';
-        $scope.apply()
+        $scope.$apply(function(){
+          $scope.time = 0.0;
+          $scope.actual_mins = 0.0;
+          $scope.actual_secs = 0.0;
+          $scope.estimated = 0.0;
+          $scope.name = '';
+        });
       });
     }
   };
