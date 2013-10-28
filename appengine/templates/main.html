@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div ng-controller="trackcontroller">
+    <div class="container-fluid">
+      <div class="row-fluid">
+       <table>
+       <tr><td>Task</td><td>Estimated Time</td><td>Actual Time</td><td></td></tr>
+       <tr>
+         <td><input type="text" ng-model="name" required ></td>
+         <td><input type="number" ng-model="estimate" step="5" min="0" required ></td>
+         <td>{{ '{{ actual_mins | number:0 }}m {{ actual_secs | number:0 }}s' }}</td>
+         <td><button ng-click="toggleTimer()">{{ '{{ buttontext }}' }}</button></td>
+         <td><button ng-click="submit()">done</button></td>
+       </tr>
+      </table>
+      </div>
+    </div>
+  </div>
+{% endblock %}

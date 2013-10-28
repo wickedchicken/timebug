@@ -1,0 +1,32 @@
+application: you-suck-at-time
+version: 1
+runtime: python27
+api_version: 1
+threadsafe: true
+
+handlers:
+- url: /css
+  static_dir: css
+
+- url: /js
+  static_dir: js
+
+- url: /_ah/spi/.*
+  script: tasktimer_api.app
+
+- url: /.*
+  script: app.app
+
+builtins:
+- remote_api: on
+
+inbound_services:
+- warmup
+
+libraries:
+- name: jinja2
+  version: '2.6'
+- name: pycrypto
+  version: latest
+- name: endpoints
+  version: 1.0
