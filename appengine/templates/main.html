@@ -3,7 +3,12 @@
 {% block content %}
   <div ng-controller="trackcontroller">
     <div class="container-fluid">
-      <div class="row-fluid">
+      <div ng-hide="is_authorized">
+      <div class="row-fluid"><button
+          ng-click="handleAuthClick()">login!</button></div>
+      </div>
+      <div class="row-fluid" ng-show="is_authorized"><p>login = {{ '{{ username }}' }}</p>
+        <button ng-click="logout()">log out</button>
        <table>
        <tr><td>Task</td><td>Estimated Time</td><td>Actual Time</td><td></td></tr>
        <tr>
