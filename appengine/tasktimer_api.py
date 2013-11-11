@@ -1,8 +1,4 @@
-"""Hello World API implemented using Google Cloud Endpoints.
-
-Defined here are the ProtoRPC messages needed to define Schemas for methods
-as well as those methods defined in an API.
-"""
+"""Tasktimer API implemented using Google Cloud Endpoints."""
 
 
 import endpoints
@@ -47,7 +43,13 @@ class TaskCollection(messages.Message):
   """Collection of Greetings."""
   items = messages.MessageField(Task, 1, repeated=True)
 
-@endpoints.api(name='tasktimer', version='v1')
+ALLOWED_CLIENT_IDS = [
+    '471586205082.apps.googleusercontent.com',
+    endpoints.API_EXPLORER_CLIENT_ID
+]
+
+@endpoints.api(name='tasktimer', version='v1',
+    allowed_client_ids=ALLOWED_CLIENT_IDS)
 class TaskTimerApi(remote.Service):
   """TaskTimer API v1."""
 
