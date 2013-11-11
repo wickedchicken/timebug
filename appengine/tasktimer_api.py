@@ -6,6 +6,7 @@ as well as those methods defined in an API.
 
 
 import endpoints
+import logging
 from protorpc import messages
 from protorpc import message_types
 from protorpc import remote
@@ -50,10 +51,20 @@ class TaskCollection(messages.Message):
 class TaskTimerApi(remote.Service):
   """TaskTimer API v1."""
 
+  @staticmethod
+  def get_user():
+    current_user = endpoints.get_current_user()
+    if current_user is None:
+      raise endpoints.UnauthorizedException('Invalid token.')
+    logging.info(current_user)
+    return current_user
+
+
   @endpoints.method(Task, Task,
                     path='tasks', http_method='POST',
                     name='tasks.createTask')
   def create_task(self, request):
+    user = self.get_user()
     db_task = one_task_to_another(models.Task, request)
     db_task.put()
     # db_task should have a key now.
@@ -63,6 +74,7 @@ class TaskTimerApi(remote.Service):
                     path='tasks', http_method='GET',
                     name='tasks.listTasks')
   def tasks_list(self, unused_request):
+    user = self.get_user()
     tasks = []
     for task in models.Task.query().iter():
       tasks.append(one_task_to_another(Task, task))
@@ -76,6 +88,7 @@ class TaskTimerApi(remote.Service):
                     path='tasks/{req_task_id}', http_method='POST',
                     name='tasks.updateTask')
   def update_task(self, request):
+    user = self.get_user()
     db_task = models.Task.get_by_id(request.req_task_id)
     if not db_task:
       raise endpoints.NotFoundException('task %s not found' %
@@ -93,6 +106,7 @@ class TaskTimerApi(remote.Service):
                     path='tasks/{task_id}', http_method='GET',
                     name='tasks.getTask')
   def get_task(self, request):
+    user = self.get_user()
     db_task = models.Task.get_by_id(request.task_id)
     if not db_task:
       raise endpoints.NotFoundException('task %s not found' %
