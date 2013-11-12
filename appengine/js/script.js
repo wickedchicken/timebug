@@ -22,37 +22,54 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   $scope.apiKey = 'AIzaSyBYw1ds3nPeWIXCzd5VJhN7uyJLRwX2onM';
   $scope.apiscopes = ['https://www.googleapis.com/auth/userinfo.email'];
   $scope.handleClientLoad = function() {
-    gapi.client.load('tasktimer', 'v1', function() {
-      $scope.$apply(function(){
-        $scope.backend_ready = true;
-      })
-    }, '/_ah/api');
     gapi.client.setApiKey($scope.apiKey);
-    $timeout($scope.checkAuth, 1);
+    gapi.client.load('oauth2', 'v2', function() {
+      $scope.$apply($scope.on_api_load)
+    });
+    gapi.client.load('tasktimer', 'v1', function() {
+      $scope.$apply($scope.on_api_load)
+    }, '/_ah/api');
   }
 
-  $scope.checkAuth = function() {
-    gapi.auth.authorize({client_id: $scope.clientId, scope: $scope.apiscopes,
-      immediate: true}, $scope.handleAuthResult);
+  $scope.checkAuth = function(callback) {
+    return function(){
+      gapi.auth.authorize({client_id: $scope.clientId, scope: $scope.apiscopes,
+        immediate: true}, $scope.handleAuthResult(callback));
+    }
   }
 
-  $scope.handleAuthResult = function(authResult) {
-    if (authResult && !authResult.error) {
-      console.log('authed!')
-      gapi.client.load('oauth2', 'v2', function() {
-        var request = gapi.client.oauth2.userinfo.get();
+  $scope.apis_to_load = 2;
+  $scope.on_api_load = function(){
+    --$scope.apis_to_load;
+    $scope.do_auth();
+  }
+  $scope.do_auth = function(){
+    if ($scope.apis_to_load == 0) {
+      var request = gapi.client.oauth2.userinfo.get();
+      $scope.backend_ready = true;
+      $timeout($scope.checkAuth(function(){
         request.execute($scope.getEmailCallback);
-      });
-    } else {
-      $scope.$apply(function(){
-        $scope.is_authorized = false;
-      })
+      }), 1);
+    }
+  }
+
+
+  $scope.handleAuthResult = function(callback){
+    return function(authResult) {
+      if (authResult && !authResult.error) {
+        console.log('authed!');
+        callback();
+      } else {
+        $scope.$apply(function(){
+          $scope.is_authorized = false;
+        })
+      }
     }
   }
 
   $scope.handleAuthClick = function(event) {
     gapi.auth.authorize({client_id: $scope.clientId, scope: $scope.apiscopes,
-      immediate: false}, $scope.handleAuthResult);
+      immediate: false}, $scope.do_auth);
   }
 
   $scope.logout = function(event) {
