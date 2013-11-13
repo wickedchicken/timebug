@@ -9,9 +9,13 @@ from protorpc import remote
 
 import models
 
+from google.appengine.ext import ndb
+
+class User(messages.Message):
+  last_seen_email = messages.StringField(2)
+  wants_email = messages.BooleanField(16)
 
 class Task(messages.Message):
-  """Greeting that stores a message."""
   task_id = messages.IntegerField(1)
   estimate = messages.FloatField(2)
   actual = messages.FloatField(3)
@@ -25,14 +29,27 @@ def update_db_task(db_task, request_task):
     if i in (x.name for x in request_task.all_fields()):
       setattr(db_task, i, getattr(request_task, i))
 
-def one_task_to_another(target_class, other_task):
-  target = target_class(
-      estimate=other_task.estimate,
-      actual=other_task.actual,
-      finished=other_task.finished,
-      modified=other_task.modified,
-      created=other_task.created,
-      name=other_task.name)
+def one_task_to_another(target_class, other_task, parent=None):
+  if parent and target_class != Task:
+    parent_key=ndb.Key(models.User, parent)
+
+    target = target_class(
+        parent=parent_key,
+        estimate=other_task.estimate,
+        actual=other_task.actual,
+        finished=other_task.finished,
+        modified=other_task.modified,
+        created=other_task.created,
+        name=other_task.name)
+    logging.info(str(target))
+  else:
+    target = target_class(
+        estimate=other_task.estimate,
+        actual=other_task.actual,
+        finished=other_task.finished,
+        modified=other_task.modified,
+        created=other_task.created,
+        name=other_task.name)
 
   if target_class == Task:
     target.task_id = other_task.key.id()
@@ -58,16 +75,18 @@ class TaskTimerApi(remote.Service):
     current_user = endpoints.get_current_user()
     if current_user is None:
       raise endpoints.UnauthorizedException('Invalid token.')
-    logging.info(current_user)
     return current_user
 
+  def get_user_ancestor(self):
+    return self.get_user().user_id()
 
   @endpoints.method(Task, Task,
                     path='tasks', http_method='POST',
                     name='tasks.createTask')
   def create_task(self, request):
     user = self.get_user()
-    db_task = one_task_to_another(models.Task, request)
+    db_task = one_task_to_another(models.Task, request,
+        parent=self.get_user_ancestor())
     db_task.put()
     # db_task should have a key now.
     return one_task_to_another(Task, db_task)
@@ -78,7 +97,7 @@ class TaskTimerApi(remote.Service):
   def tasks_list(self, unused_request):
     user = self.get_user()
     tasks = []
-    for task in models.Task.query().iter():
+    for task in models.Task.query(parent=self.get_user_ancestor()).iter():
       tasks.append(one_task_to_another(Task, task))
     return TaskCollection(items=tasks)
 
@@ -91,7 +110,8 @@ class TaskTimerApi(remote.Service):
                     name='tasks.updateTask')
   def update_task(self, request):
     user = self.get_user()
-    db_task = models.Task.get_by_id(request.req_task_id)
+    db_task = models.Task.get_by_id(request.req_task_id,
+        parent=ndb.Key(models.Task, self.get_user_ancestor()))
     if not db_task:
       raise endpoints.NotFoundException('task %s not found' %
           (request.req_task_id,))
@@ -109,11 +129,23 @@ class TaskTimerApi(remote.Service):
                     name='tasks.getTask')
   def get_task(self, request):
     user = self.get_user()
-    db_task = models.Task.get_by_id(request.task_id)
+    db_task = models.Task.get_by_id(request.task_id,
+        parent=self.get_user_ancestor())
     if not db_task:
       raise endpoints.NotFoundException('task %s not found' %
           (request.task_id,))
     else:
       return one_task_to_another(Task, db_task)
+
+  @endpoints.method(User, message_types.VoidMessage,
+                    path='user', http_method='POST',
+                    name='users.updateUser')
+  def update_user(self, request):
+    user = self.get_user()
+
+    models.User.create_or_update(str(user.user_id()), user.email(),
+        request.wants_email)
+
+    return message_types.VoidMessage()
 
 app = endpoints.api_server([TaskTimerApi])
