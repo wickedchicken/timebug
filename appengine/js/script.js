@@ -19,10 +19,8 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   };
 
   $scope.clientId = '471586205082.apps.googleusercontent.com';
-  $scope.apiKey = 'AIzaSyBYw1ds3nPeWIXCzd5VJhN7uyJLRwX2onM';
   $scope.apiscopes = ['https://www.googleapis.com/auth/userinfo.email'];
   $scope.handleClientLoad = function() {
-    gapi.client.setApiKey($scope.apiKey);
     gapi.client.load('oauth2', 'v2', function() {
       $scope.$apply($scope.on_api_load)
     });
@@ -31,28 +29,24 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     }, '/_ah/api');
   }
 
-  $scope.checkAuth = function(callback) {
-    return function(){
-      gapi.auth.authorize({client_id: $scope.clientId, scope: $scope.apiscopes,
-        immediate: true}, $scope.handleAuthResult(callback));
-    }
+  $scope.checkAuth = function() {
+    gapi.auth.authorize({client_id: $scope.clientId, scope: $scope.apiscopes,
+      immediate: true}, $scope.handleAuthResult($scope.do_auth));
   }
 
   $scope.apis_to_load = 2;
   $scope.on_api_load = function(){
     --$scope.apis_to_load;
-    $scope.do_auth();
-  }
-  $scope.do_auth = function(){
     if ($scope.apis_to_load == 0) {
-      var request = gapi.client.oauth2.userinfo.get();
-      $scope.backend_ready = true;
-      $timeout($scope.checkAuth(function(){
-        request.execute($scope.getEmailCallback);
-      }), 1);
+      $scope.checkAuth();
     }
   }
 
+  $scope.do_auth = function(){
+    $scope.backend_ready = true;
+    var request = gapi.client.oauth2.userinfo.get();
+    request.execute($scope.getEmailCallback);
+  }
 
   $scope.handleAuthResult = function(callback){
     return function(authResult) {
@@ -69,7 +63,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
 
   $scope.handleAuthClick = function(event) {
     gapi.auth.authorize({client_id: $scope.clientId, scope: $scope.apiscopes,
-      immediate: false}, $scope.do_auth);
+      immediate: false}, $scope.handleAuthResult($scope.do_auth));
   }
 
   $scope.logout = function(event) {
@@ -92,6 +86,9 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     $scope.$apply(function(){
       $scope.username = obj['email'];
       $scope.is_authorized = true;
+      gapi.client.tasktimer.users.updateUser({
+        'last_seen_email':obj['email']
+      }).execute(function(resp) { console.log(resp);});
     })
 
     console.log(obj);   // Uncomment to inspect the full object.

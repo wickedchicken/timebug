@@ -9,5 +9,14 @@ class Task(ndb.Model):
   finished = ndb.BooleanProperty(default=False)
 
 class User(ndb.Model):
-  email = ndb.StringProperty(required=True)
+  last_seen = ndb.DateTimeProperty(auto_now=True)
+  last_seen_email = ndb.StringProperty()
   wants_email = ndb.BooleanProperty(default=False)
+
+  @staticmethod
+  def create_or_update(parent, email, wants_email):
+    db_user = User.get_or_insert(parent)
+    db_user.last_seen_email = email
+    if wants_email is not None:
+      db_user.wants_email = wants_email
+    db_user.put()
