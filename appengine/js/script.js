@@ -94,14 +94,23 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     console.log(obj);   // Uncomment to inspect the full object.
   }
 
+  $scope.update_actual = function(){
+    $scope.elapsed = (($scope.actual_mins * 60.0) + $scope.actual_secs) * 1000
+    if ($scope.start != null){
+      var newtime = new Date().getTime();
+      $scope.time = $scope.elapsed - Math.floor(newtime - $scope.start)
+    } else {
+      $scope.time = $scope.elapsed
+    }
+  }
 
   $scope.onTimeout = function(){
     var newtime = new Date().getTime();
     $scope.elapsed = Math.floor(newtime - $scope.start) + $scope.time;
 
     var secs_elapsed = $scope.elapsed / 1000;
-    $scope.actual_mins = secs_elapsed / 60;
-    $scope.actual_secs = secs_elapsed % 60;
+    $scope.actual_mins = Math.floor(secs_elapsed / 60);
+    $scope.actual_secs = Math.floor(secs_elapsed % 60);
 
     $scope.mytimeout = $timeout($scope.onTimeout, 500);
   }
