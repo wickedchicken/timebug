@@ -9,7 +9,7 @@
       </div>
       <div class="row-fluid" ng-show="is_authorized"><p>login = {{ '{{ username }}' }}</p>
         <button ng-click="logout()">log out</button>
-       <table>
+       <table class="table">
        <tr><td>Task</td><td>Estimated Time</td><td>Actual Time</td><td></td></tr>
        <tr>
          <td><input type="text" ng-model="name" required ></td>
@@ -21,6 +21,14 @@
          <td><button ng-click="toggleTimer()">{{ '{{ buttontext }}' }}</button></td>
          <td><button ng-click="submit()">done</button></td>
        </tr>
+      </table>
+      <table class="table table-striped">
+        <tr><td>Task</td><td>Estimated Time</td><td>Actual Time</td><td></td></tr>
+        <tr ng-repeat="task in tasks">
+          <td>{{ '{{task.name}}' }}</td>
+          <td>{{ '{{task.estimate / 60 | number:0}}' }}m {{ '{{task.estimate % 60 | number:0}}s' }}</td>
+          <td>{{ '{{task.actual / 60 | number:0}}' }}m {{ '{{task.actual % 60 | number:0}}s' }}</td>
+        </tr>
       </table>
       </div>
     </div>
