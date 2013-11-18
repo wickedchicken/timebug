@@ -5,6 +5,7 @@ function customInit(){
 var myApp = angular.module('timetracker',[]);
  
 myApp.controller('trackcontroller', function($scope, $timeout, $window, $location, $http) {
+  $scope.estimate = 10.0
   $scope.username = 'unauthorized';
   $scope.backend_ready = false;
   $scope.is_authorized = false;
@@ -14,6 +15,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   $scope.elapsed = 0.0;
   $scope.actual_mins = 0.0;
   $scope.actual_secs = 0.0;
+  $scope.tasks = []
   $window.init = function() {
     $scope.handleClientLoad();
   };
@@ -51,7 +53,6 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   $scope.handleAuthResult = function(callback){
     return function(authResult) {
       if (authResult && !authResult.error) {
-        console.log('authed!');
         callback();
       } else {
         $scope.$apply(function(){
@@ -82,14 +83,31 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       });
   }
 
+  $scope.get_item_list = function(){
+    gapi.client.tasktimer.tasks.listTasks().execute(function(resp){
+      if (resp.error){
+        console.log(resp);
+      } else {
+        $scope.$apply(function(){
+          $scope.tasks = resp.items
+        });
+      }
+    });
+  }
+
   $scope.getEmailCallback = function(obj){
     $scope.$apply(function(){
       $scope.username = obj['email'];
       $scope.is_authorized = true;
       gapi.client.tasktimer.users.updateUser({
         'last_seen_email':obj['email']
-      }).execute(function(resp) { console.log(resp);});
+      }).execute(function(resp) {
+        if (resp.error){
+          console.log(resp);
+        }
+      });
     })
+    $scope.get_item_list();
 
     console.log(obj);   // Uncomment to inspect the full object.
   }
@@ -130,9 +148,10 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       $scope.mytimeout = $timeout($scope.onTimeout,500);
     }
   };
+
   $scope.submit = function(){
     if($scope.timer_running){
-      $scope.toggleTimer()
+      $scope.toggleTimer();
     }
     if($scope.time > 0.0){
       gapi.client.tasktimer.tasks.createTask(
@@ -141,15 +160,18 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
            'actual':$scope.time/1000,
            'finished':true
           }).execute(function(resp) {
-        console.log(resp);
-        $scope.$apply(function(){
-          $scope.time = 0.0;
-          $scope.actual_mins = 0.0;
-          $scope.actual_secs = 0.0;
-          $scope.estimated = 0.0;
-          $scope.name = '';
-        });
-      });
+            if (resp.error){
+              console.log(resp);
+            } else{
+              $scope.$apply(function(){
+                $scope.time = 0.0;
+                $scope.actual_mins = 0.0;
+                $scope.actual_secs = 0.0;
+                $scope.estimated = 0.0;
+                $scope.name = '';
+              });
+            }
+          });
     }
   };
 });

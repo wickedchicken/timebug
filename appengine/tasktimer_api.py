@@ -97,7 +97,8 @@ class TaskTimerApi(remote.Service):
   def tasks_list(self, unused_request):
     user = self.get_user()
     tasks = []
-    for task in models.Task.query(parent=self.get_user_ancestor()).iter():
+    for task in models.Task.query(
+        ancestor=ndb.Key(models.User, self.get_user_ancestor())).order(-models.Task.created).iter():
       tasks.append(one_task_to_another(Task, task))
     return TaskCollection(items=tasks)
 
