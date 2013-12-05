@@ -29,6 +29,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     gapi.client.load('tasktimer', 'v1', function() {
       $scope.$apply($scope.on_api_load)
     }, '/_ah/api');
+    $scope.load_chart_api();
   }
 
   $scope.checkAuth = function() {
@@ -36,12 +37,51 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       immediate: true}, $scope.handleAuthResult($scope.do_auth));
   }
 
-  $scope.apis_to_load = 2;
+  $scope.apis_to_load = 3;
   $scope.on_api_load = function(){
     --$scope.apis_to_load;
     if ($scope.apis_to_load == 0) {
       $scope.checkAuth();
     }
+  }
+
+  $scope.drawChart = function(){
+    var header = [['Estimate', 'Actual']];
+
+    var dat = _.map($scope.tasks,
+                    function(x){return [x.estimate / 60.0, x.actual / 60.0]});
+
+    var data = google.visualization.arrayToDataTable(header.concat(dat));
+
+    // Set chart options
+    var options = {'title':'Prediction vs Reality',
+      'width':400,
+      'height':300};
+
+    // Instantiate and draw our chart, passing in some options.
+    var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
+    chart.draw(data, options);
+
+    var dat_norm = _.map($scope.tasks,
+                    function(x){return [x.estimate / 60.0, (x.actual - x.estimate) / 60.0]});
+
+    var data_norm = google.visualization.arrayToDataTable(header.concat(dat_norm));
+
+    // Set chart options
+    var options_norm = {'title':'Prediction vs Reality Difference',
+      'width':400,
+      'height':300};
+
+    // Instantiate and draw our chart, passing in some options.
+    var chart_norm = new google.visualization.ScatterChart(document.getElementById('chart_div2'));
+    chart_norm.draw(data_norm, options_norm);
+  }
+
+  $scope.load_chart_api = function(){
+    google.load('visualization', '1.0', {
+      'packages':['corechart'],
+      'callback':$scope.on_api_load
+    });
   }
 
   $scope.do_auth = function(){
@@ -90,6 +130,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       } else {
         $scope.$apply(function(){
           $scope.tasks = resp.items
+          $scope.drawChart();
         });
       }
     });
