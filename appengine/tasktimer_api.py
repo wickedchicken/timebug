@@ -78,7 +78,7 @@ class TaskTimerApi(remote.Service):
     return current_user
 
   def get_user_ancestor(self):
-    return self.get_user().user_id()
+    return str(self.get_user().user_id() or self.get_user().email())
 
   @endpoints.method(Task, Task,
                     path='tasks', http_method='POST',
@@ -144,7 +144,9 @@ class TaskTimerApi(remote.Service):
   def update_user(self, request):
     user = self.get_user()
 
-    models.User.create_or_update(str(user.user_id()), user.email(),
+    user_id = user.user_id() or user.email()
+
+    models.User.create_or_update(str(user_id), user.email(),
         request.wants_email)
 
     return message_types.VoidMessage()
