@@ -15,7 +15,8 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   $scope.elapsed = 0.0;
   $scope.actual_mins = 0.0;
   $scope.actual_secs = 0.0;
-  $scope.tasks = []
+  $scope.tasks = [];
+  $scope.posted_tasks = {};
   $window.init = function() {
     $scope.handleClientLoad();
   };
@@ -45,10 +46,14 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     }
   }
 
+  $scope.concattasks = function () {
+    return $scope.tasks.concat(_.values($scope.posted_tasks));
+  }
+
   $scope.drawChart = function(){
     var header = [['Estimate', 'Actual']];
 
-    var dat_norm = _.map($scope.tasks,
+    var dat_norm = _.map($scope.concattasks(),
                     function(x){return [x.estimate / 60.0, (x.actual - x.estimate) / 60.0]});
 
     var default_append = function(obj, key, value){
@@ -109,7 +114,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
 
     var snap_to = 5;
     if (group_stats.length > 0) {
-      var max_estimate = _.max(_.map(Object.keys(grouped), Number));
+      var max_estimate = _.max(_.map(_.keys(grouped), Number));
     } else {
       var max_estimate = 0;
     }
@@ -221,7 +226,13 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
         console.log(resp);
       } else {
         $scope.$apply(function(){
-          $scope.tasks = resp.items
+          $scope.tasks = resp.items;
+          var task_ids = _.map($scope.tasks, function(x) {
+            return String(x.task_id);
+          });
+          $scope.posted_tasks = _.filter($scope.posted_tasks, function (x) {
+            return !_.contains(task_ids, x);
+          });
           $scope.drawChart();
         });
       }
@@ -292,14 +303,16 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
            'finished':true
           }).execute(function(resp) {
             if (resp.error){
-              console.log(resp);
+              consoel.log(resp);
             } else{
+              $scope.posted_tasks[String(resp.task_id)] = resp;
               $scope.$apply(function(){
                 $scope.time = 0.0;
                 $scope.actual_mins = 0.0;
                 $scope.actual_secs = 0.0;
                 $scope.estimated = 0.0;
                 $scope.name = '';
+                $scope.get_item_list();
               });
             }
           });

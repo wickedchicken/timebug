@@ -29,7 +29,7 @@
       </table>
       <table class="table table-striped">
         <tr><td>Task</td><td>Estimated Time</td><td>Actual Time</td><td></td></tr>
-        <tr ng-repeat="task in tasks">
+        <tr ng-repeat="task in concattasks()">
           <td>{{ '{{task.name}}' }}</td>
           <td>{{ '{{task.estimate / 60 | number:0}}' }}m {{ '{{task.estimate % 60 | number:0}}s' }}</td>
           <td>{{ '{{task.actual / 60 | number:0}}' }}m {{ '{{task.actual % 60 | number:0}}s' }}</td>
