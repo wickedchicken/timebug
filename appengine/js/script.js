@@ -48,29 +48,121 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   $scope.drawChart = function(){
     var header = [['Estimate', 'Actual']];
 
-    var dat = _.map($scope.tasks,
-                    function(x){return [x.estimate / 60.0, x.actual / 60.0]});
-
-    var data = google.visualization.arrayToDataTable(header.concat(dat));
-
-    // Set chart options
-    var options = {'title':'Prediction vs Reality',
-      'width':400,
-      'height':300};
-
-    // Instantiate and draw our chart, passing in some options.
-    var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
-    chart.draw(data, options);
-
     var dat_norm = _.map($scope.tasks,
                     function(x){return [x.estimate / 60.0, (x.actual - x.estimate) / 60.0]});
+
+    var default_append = function(obj, key, value){
+      if (key in obj){
+        obj[key].push(value);
+      } else {
+        obj[key] = [value];
+      }
+      return obj;
+    };
+
+    var grouped = _.reduce(dat_norm, function(x, y) {return default_append(x, y[0], y[1])}, {});
+
+    var recursive_split = function(amount, low, high){
+      var diff = high - low;
+      var neg = low + Math.floor(diff / 2);
+      var pos = low + Math.floor(diff / 2) + (diff % 2);
+      if (amount > 0) {
+        return recursive_split(amount - 1, low, neg).concat(
+            recursive_split(0, neg, pos)).concat(
+            recursive_split(amount -1, pos, high));
+      } else {
+        return [[neg, pos]];
+      }
+    };
+
+    var stats = function(arr){
+      if (arr.length < 1){
+        return [];
+      }
+
+      var avg = _.reduce(arr, function(x, y) { return x + y }, 0.0);
+      var max = _.max(arr);
+      var min = _.min(arr);
+      var sorted = _.sortBy(arr, function(a,b){return a-b});
+      // recursive_split(1, ...) gives us quartiles.
+      var quartiles = _.map(
+          recursive_split(1, 0, arr.length - 1),
+          function(x) {
+            return (sorted[x[0]] + sorted[x[1]]) / 2.0;
+          });
+
+      // Regardless of how many divisions we specify in quartiles, make sure
+      // upper/lower 25% are first and last. This way visualization will put a
+      // line through them signifying middle 50%.
+      var quartiles_idx = recursive_split(1, 0, quartiles.length - 1);
+      var quartile_location = [_.first(_.first(quartiles_idx)),
+                               _.last(_.last(quartiles_idx))];
+      var low50 = quartiles.splice(quartile_location[0], 1)[0];
+      var top50 = quartiles.splice(quartile_location[1] - 1, 1)[0];
+
+      return [avg, low50, min, max].concat(quartiles).concat([top50]);
+    }
+
+    var group_stats = _.map(grouped, function(x, key) {
+      return [Number(key)].concat(stats(x));
+    });
+
+    var snap_to = 5;
+    if (group_stats.length > 0) {
+      var max_estimate = _.max(_.map(Object.keys(grouped), Number));
+    } else {
+      var max_estimate = 0;
+    }
+
+    var max_chart_value = max_estimate + (5 - (max_estimate % 5));
+
+    var data = new google.visualization.DataTable();
+    data.addColumn('number', 'estimate');
+    data.addColumn('number', 'difference');
+    data.addColumn({id:'i0', type:'number', role:'interval'});
+    data.addColumn({id:'i1', type:'number', role:'interval'});
+    data.addColumn({id:'i2', type:'number', role:'interval'});
+    data.addColumn({id:'i3', type:'number', role:'interval'});
+    data.addColumn({id:'i0', type:'number', role:'interval'});
+
+    data.addRows(group_stats);
+
+    // The intervals data as narrow lines (useful for showing raw source
+    // data)
+    var options = {
+        title: 'Prediction Over/under estimate',
+        curveType: 'function',
+        series: [{'color': '#D9544C'}],
+        intervals: { style: 'bars' },
+        legend: 'none',
+        width: 400,
+        height: 300,
+        hAxis: {baseline: 0,
+          viewWindowMode: 'explicit',
+          viewWindow: {
+            max: max_chart_value
+          }
+        },
+        intervals: { 'lineWidth': 1.5, 'barWidth': 0.3 },
+    };
+
+    var chart_lines = new google.visualization.LineChart(document.getElementById('chart_div'));
+
+    // Set chart options
+    chart_lines.draw(data, options);
 
     var data_norm = google.visualization.arrayToDataTable(header.concat(dat_norm));
 
     // Set chart options
     var options_norm = {'title':'Prediction vs Reality Difference',
-      'width':400,
-      'height':300};
+      hAxis: {baseline: 0,
+        viewWindowMode: 'explicit',
+        viewWindow: {
+          max: max_chart_value
+        }
+      },
+      width:400,
+      height:300};
 
     // Instantiate and draw our chart, passing in some options.
     var chart_norm = new google.visualization.ScatterChart(document.getElementById('chart_div2'));
@@ -149,8 +241,6 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       });
     })
     $scope.get_item_list();
-
-    console.log(obj);   // Uncomment to inspect the full object.
   }
 
   $scope.update_actual = function(){
