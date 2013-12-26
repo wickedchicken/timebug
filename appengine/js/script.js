@@ -130,7 +130,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     data.addColumn({id:'i3', type:'number', role:'interval'});
     data.addColumn({id:'i0', type:'number', role:'interval'});
 
-    data.addRows(group_stats);
+    data.addRows(_.sortBy(group_stats, function(a){return a[0];}));
 
     // The intervals data as narrow lines (useful for showing raw source
     // data)
