@@ -80,7 +80,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
         return [];
       }
 
-      var avg = _.reduce(arr, function(x, y) { return x + y }, 0.0);
+      var avg = _.reduce(arr, function(x, y) { return x + y }, 0.0) / arr.length;
       var max = _.max(arr);
       var min = _.min(arr);
       var sorted = _.sortBy(arr, function(a,b){return a-b});
