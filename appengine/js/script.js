@@ -226,14 +226,16 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
         console.log(resp);
       } else {
         $scope.$apply(function(){
-          $scope.tasks = resp.items;
-          var task_ids = _.map($scope.tasks, function(x) {
-            return String(x.task_id);
-          });
-          $scope.posted_tasks = _.filter($scope.posted_tasks, function (x) {
-            return !_.contains(task_ids, x);
-          });
-          $scope.drawChart();
+          if ('items' in resp) {
+            $scope.tasks = resp.items;
+            var task_ids = _.map($scope.tasks, function(x) {
+              return String(x.task_id);
+            });
+            $scope.posted_tasks = _.filter($scope.posted_tasks, function (x) {
+              return !_.contains(task_ids, x);
+            });
+            $scope.drawChart();
+          }
         });
       }
     });
