@@ -191,7 +191,15 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     data.addColumn({id:'i3', type:'number', role:'interval'});
     data.addColumn({id:'i0', type:'number', role:'interval'});
 
-    data.addRows(_.sortBy(group_stats, function(a){return a[0];}));
+
+    data.addRows(_.map(days, function(x) {
+      var data = _.find(group_stats, function(y){ return y[0] == x;});
+      if (data !== undefined){
+        return data;
+      } else {
+        return [x, null, null, null, null, null, null];
+      }
+    }));
 
     // The intervals data as narrow lines (useful for showing raw source
     // data)
