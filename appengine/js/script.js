@@ -201,6 +201,19 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       }
     }));
 
+    var oldest_group = _.groupBy($scope.concattasks(), function(x) { return x.date.getDay(); });
+
+    var now = new Date();
+    var days_recorded = {}
+    _.map(oldest_group, function(tasks, k){
+      var old = _.first(_.sortBy(tasks, function(x) { return x.date; }));
+      var days_between = function(a, b){
+        return Math.round(Math.abs(
+            (a.getTime() - b.getTime())/(24*60*60*1000)));
+      }
+      days_recorded[days[tasks[0].date.getDay()]] = 1 + days_between(old.date, now);
+    });
+
     // The intervals data as narrow lines (useful for showing raw source
     // data)
     var options = {
