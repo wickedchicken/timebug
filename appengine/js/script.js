@@ -198,8 +198,9 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     var options = {
         title: 'Per day throughput',
         curveType: 'function',
-        series: [{'color': '#D9544C'}],
+        series: [{'color': '#CC66FF'}],
         intervals: { style: 'bars' },
+        lineWidth: 0,
         legend: 'none',
         width: 400,
         height: 300,
