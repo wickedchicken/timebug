@@ -172,6 +172,45 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     // Instantiate and draw our chart, passing in some options.
     var chart_norm = new google.visualization.ScatterChart(document.getElementById('chart_div2'));
     chart_norm.draw(data_norm, options_norm);
+
+
+    var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var dat_abs = _.map($scope.concattasks(),
+                    function(x){return [days[x.date.getDay()], x.actual / 60.0]});
+    var grouped = _.reduce(dat_abs, function(x, y) {return default_append(x, y[0], y[1])}, {});
+    var group_stats = _.map(grouped, function(x, key) {
+      return [key].concat(stats(x));
+    });
+
+    var data = new google.visualization.DataTable();
+    data.addColumn('string', 'day');
+    data.addColumn('number', 'total minutes');
+    data.addColumn({id:'i0', type:'number', role:'interval'});
+    data.addColumn({id:'i1', type:'number', role:'interval'});
+    data.addColumn({id:'i2', type:'number', role:'interval'});
+    data.addColumn({id:'i3', type:'number', role:'interval'});
+    data.addColumn({id:'i0', type:'number', role:'interval'});
+
+    data.addRows(_.sortBy(group_stats, function(a){return a[0];}));
+
+    // The intervals data as narrow lines (useful for showing raw source
+    // data)
+    var options = {
+        title: 'Per day throughput',
+        curveType: 'function',
+        series: [{'color': '#CC66FF'}],
+        intervals: { style: 'bars' },
+        lineWidth: 0,
+        legend: 'none',
+        width: 400,
+        height: 300,
+        intervals: { 'lineWidth': 1.5, 'barWidth': 0.3 },
+    };
+
+    var chart_lines = new google.visualization.LineChart(document.getElementById('chart_div3'));
+
+    // Set chart options
+    chart_lines.draw(data, options);
   }
 
   $scope.load_chart_api = function(){
@@ -228,6 +267,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
         $scope.$apply(function(){
           if ('items' in resp) {
             $scope.tasks = resp.items;
+            _.each($scope.tasks, function (x) { x.date = new Date(x.modified); });
             var task_ids = _.map($scope.tasks, function(x) {
               return String(x.task_id);
             });
@@ -307,6 +347,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
             if (resp.error){
               consoel.log(resp);
             } else{
+              resp.date = new Date(resp.modified);
               $scope.posted_tasks[String(resp.task_id)] = resp;
               $scope.$apply(function(){
                 $scope.time = 0.0;
