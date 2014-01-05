@@ -173,10 +173,29 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     var chart_norm = new google.visualization.ScatterChart(document.getElementById('chart_div2'));
     chart_norm.draw(data_norm, options_norm);
 
+    var days_between = function(a, b){
+      return Math.round(Math.abs(
+            (a.getTime() - b.getTime())/(24*60*60*1000)));
+    }
+
+    var days_since_epoch = function(a){
+      var epoch = new Date(70,1,1);
+      return days_between(a, epoch);
+    }
 
     var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    var dat_abs = _.map($scope.concattasks(),
-                    function(x){return [days[x.date.getDay()], x.actual / 60.0]});
+    var dat_abs_day = _.groupBy(_.map($scope.concattasks(),
+          function(x){return [days_since_epoch(x.date),
+            days[x.date.getDay()], x.actual / 60.0]
+          }),
+        function(x){
+          return x[0];
+        });
+    var dat_abs = [];
+    _.each(dat_abs_day, function(v, k){
+      dat_abs.push([v[0][1], _.reduce(_.map(v, function(x){ return x[2];}),
+          function(x,y){ return x + y;}, 0.0)]);
+    });
     var grouped = _.reduce(dat_abs, function(x, y) {return default_append(x, y[0], y[1])}, {});
     var group_stats = _.map(grouped, function(x, key) {
       return [key].concat(stats(x));
@@ -207,10 +226,6 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     var days_recorded = {}
     _.map(oldest_group, function(tasks, k){
       var old = _.first(_.sortBy(tasks, function(x) { return x.date; }));
-      var days_between = function(a, b){
-        return Math.round(Math.abs(
-            (a.getTime() - b.getTime())/(24*60*60*1000)));
-      }
       days_recorded[days[tasks[0].date.getDay()]] = 1 + days_between(old.date, now);
     });
 
