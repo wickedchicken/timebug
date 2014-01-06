@@ -6,6 +6,10 @@ var myApp = angular.module('timetracker',[]);
  
 myApp.controller('trackcontroller', function($scope, $timeout, $window, $location, $http) {
   $scope.estimate = 10.0
+  $scope.calced_estimates = {};
+  $scope.calced_day_estimates = {};
+  $scope.estimates = '';
+  $scope.estimate_text = '';
   $scope.username = 'unauthorized';
   $scope.backend_ready = false;
   $scope.is_authorized = false;
@@ -16,6 +20,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   $scope.actual_mins = 0.0;
   $scope.actual_secs = 0.0;
   $scope.tasks = [];
+  $scope.days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   $scope.posted_tasks = {};
   $window.init = function() {
     $scope.handleClientLoad();
@@ -112,6 +117,8 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       return [Number(key)].concat(stats(x));
     });
 
+    $scope.calced_estimates = _.groupBy(group_stats, function(x) { return String(x[0]); });
+
     var snap_to = 5;
     if (group_stats.length > 0) {
       var max_estimate = _.max(_.map(_.keys(grouped), Number));
@@ -183,10 +190,9 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       return days_between(a, epoch);
     }
 
-    var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     var dat_abs_day = _.groupBy(_.map($scope.concattasks(),
           function(x){return [days_since_epoch(x.date),
-            days[x.date.getDay()], x.actual / 60.0]
+            $scope.days[x.date.getDay()], x.actual / 60.0]
           }),
         function(x){
           return x[0];
@@ -211,7 +217,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     data.addColumn({id:'i0', type:'number', role:'interval'});
 
 
-    data.addRows(_.map(days, function(x) {
+    data.addRows(_.map($scope.days, function(x) {
       var data = _.find(group_stats, function(y){ return y[0] == x;});
       if (data !== undefined){
         return data;
@@ -226,8 +232,10 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     var days_recorded = {}
     _.map(oldest_group, function(tasks, k){
       var old = _.first(_.sortBy(tasks, function(x) { return x.date; }));
-      days_recorded[days[tasks[0].date.getDay()]] = 1 + days_between(old.date, now);
+      days_recorded[$scope.days[tasks[0].date.getDay()]] = 1 + days_between(old.date, now);
     });
+
+    $scope.calced_day_estimates = _.groupBy(group_stats, function(x) { return x[0]; });
 
     // The intervals data as narrow lines (useful for showing raw source
     // data)
@@ -247,6 +255,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
 
     // Set chart options
     chart_lines.draw(data, options);
+    $scope.recalc_estimates();
   }
 
   $scope.load_chart_api = function(){
@@ -330,6 +339,58 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       });
     })
     $scope.get_item_list();
+  }
+
+  $scope.recalc_estimates = function(){
+    var inputs = _.filter(
+        _.map($scope.estimates.replace(/ /g,'').split(','), Number),
+        Boolean);
+    if (inputs.length > 0) {
+      var estimates = _.map(inputs, function(x){
+        if (String(x) in $scope.calced_estimates){
+          var data = $scope.calced_estimates[String(x)][0];
+          // botton 50 and top 50
+          return [data[2], _.last(data)];
+        } else {
+          // no data, just return the original estimate
+          return [x, x];
+        }
+      });
+      var total_proj = _.reduce(estimates, function(x,y) {
+        return [x[0] + y[0], x[1] + y[1]];
+      }, [0,0]);
+
+      var days_until = function(left, upper){
+        var total_days = 1;
+        var startday = (new Date).getDay();
+        if (_.keys($scope.calced_day_estimates).length < 1){
+          return 0; // avoid inf loop
+        }
+        while (left > 0){
+          if ($scope.days[startday] in $scope.calced_day_estimates) {
+            var day_data = $scope.calced_day_estimates[$scope.days[startday]][0];
+            if (upper){
+              left -= _.last(day_data);
+            } else {
+              left -= day_data[2];
+            }
+          } // otherwise no day data, skip to next day
+          if (left > 0) {
+            total_days += 1;
+          }
+          startday = (startday + 1) % $scope.days.length;
+        }
+        return total_days;
+      }
+      var low_est = String(Math.round(total_proj[0]));
+      var hi_est = String(Math.round(total_proj[1]));
+      var low_days = String(days_until(total_proj[0], true));
+      var hi_days = String(days_until(total_proj[1], false));
+      $scope.estimate_text = ('estimate: ' + low_est + '/' + hi_est + 'm or ' +
+        low_days + '/' + hi_days + 'd');
+    } else {
+      $scope.estimate_text = '';
+    }
   }
 
   $scope.update_actual = function(){

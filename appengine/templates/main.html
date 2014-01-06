@@ -16,6 +16,11 @@
        <div id="chart_div2" class="span3" style="width:400; height:300"></div>
        <div id="chart_div3" class="span3" style="width:400; height:300"></div>
        <table class="table">
+         <td><input type="text" ng-model="estimates"
+           ng-change="recalc_estimates()"></td>
+         <td><input type="text" ng-model="estimate_text" ></td>
+       </table>
+       <table class="table">
        <tr><td>Task</td><td>Estimated Time</td><td>Actual Time</td><td></td></tr>
        <tr>
          <td><input type="text" ng-model="name" required ></td>
