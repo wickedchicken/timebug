@@ -13,32 +13,48 @@
       </div>
       <div class="row-fluid" ng-show-"is_authorized">
        <div id="chart_div" class="span4" style="width:400; height:300"></div>
-       <div id="chart_div2" class="span3" style="width:400; height:300"></div>
-       <div id="chart_div3" class="span3" style="width:400; height:300"></div>
+       <div id="chart_div2" class="span4" style="width:400; height:300"></div>
+       <div id="chart_div3" class="span4" style="width:400; height:300"></div>
        <table class="table">
          <td><input type="text" ng-model="estimates"
            ng-change="recalc_estimates()"></td>
          <td><input type="text" ng-model="estimate_text" ></td>
        </table>
        <table class="table">
-       <tr><td>Task</td><td>Estimated Time</td><td>Actual Time</td><td></td></tr>
+         <tr><td>Task</td><td>Estimated Time</td><td>True Estimate</td><td>Actual Time</td><td></td></tr>
        <tr>
          <td><input type="text" ng-model="name" required ></td>
-         <td><input type="number" ng-model="estimate" step="5" min="0" required ></td>
-         <td><input type="number" ng-model="actual_mins" min="0"
+         <td><input type="number" class="input-mini" ng-model="estimate"
+           step="5" min="0" required ng-change="update_estimate()"></td>
+         <td><span class="{{ '{{ realestimate_class }}' }}">(really {{ '{{realestimate | number:0}}' }}m)</span></td>
+         <td><input type="number" class="input-mini" ng-model="actual_mins" min="0"
            ng-change="update_actual()">m</td>
-         <td><input type="number" ng-model="actual_secs" min="0"
+         <td><input type="number" class="input-mini" ng-model="actual_secs" min="0"
            ng-change="update_actual()">s</td>
-         <td><button ng-click="toggleTimer()">{{ '{{ buttontext }}' }}</button></td>
-         <td><button ng-click="submit()">done</button></td>
+         <td><button ng-click="delete_task()">{{ '{{ delete_or_clear_text }}' }}</button></td>
+         <td><button ng-click="new_or_add()">{{ '{{ new_or_add_text }}' }}</button></td>
+         <td><button ng-click="toggle_and_submit()">{{ '{{ buttontext }}' }}</button></td>
+         <td><button ng-click="submit(true, true)">done</button></td>
        </tr>
       </table>
       <table class="table table-striped">
+        <tr><td>Unfinished Tasks</td></tr>
+        <tr><td>Task</td><td>Estimated Time</td><td>Real Estimate</td><td></td></tr>
+        <tr ng-repeat="task in unfinished()">
+          <td>{{ '{{task.name}}' }}</td>
+          <td>{{ '{{task.estimate / 60 | number:0}}' }}m {{ '{{task.estimate % 60 | number:0}}s' }}</td>
+          <td>{{ '{{task.realestimate / 60 | number:0}}' }}m {{ '{{task.realestimate % 60 | number:0}}s' }}</td>
+          <td><button ng-click="switch_to(task.task_id)">focus</button></td>
+        </tr>
+      </table>
+      <table class="table table-hover">
+        <tr><td>Finished Tasks</td></tr>
         <tr><td>Task</td><td>Estimated Time</td><td>Actual Time</td><td></td></tr>
-        <tr ng-repeat="task in concattasks()">
+        <tr ng-repeat="task in finished()">
           <td>{{ '{{task.name}}' }}</td>
           <td>{{ '{{task.estimate / 60 | number:0}}' }}m {{ '{{task.estimate % 60 | number:0}}s' }}</td>
           <td>{{ '{{task.actual / 60 | number:0}}' }}m {{ '{{task.actual % 60 | number:0}}s' }}</td>
+          <td><button ng-click="switch_to(task.task_id)">focus</button></td>
         </tr>
       </table>
       </div>

@@ -6,6 +6,8 @@ var myApp = angular.module('timetracker',[]);
  
 myApp.controller('trackcontroller', function($scope, $timeout, $window, $location, $http) {
   $scope.estimate = 10.0
+  $scope.realestimate = 10.0;
+  $scope.realestimate_class = "text-default";
   $scope.calced_estimates = {};
   $scope.calced_day_estimates = {};
   $scope.estimates = '';
@@ -14,8 +16,11 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   $scope.backend_ready = false;
   $scope.is_authorized = false;
   $scope.buttontext = 'start';
+  $scope.new_or_add_text = 'add';
+  $scope.delete_or_clear_text = 'clear';
   $scope.start = null;
   $scope.time = 0.0;
+  $scope.task_id = null;
   $scope.elapsed = 0.0;
   $scope.actual_mins = 0.0;
   $scope.actual_secs = 0.0;
@@ -32,7 +37,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     gapi.client.load('oauth2', 'v2', function() {
       $scope.$apply($scope.on_api_load)
     });
-    gapi.client.load('tasktimer', 'v1', function() {
+    gapi.client.load('tasktimer', 'v3', function() {
       $scope.$apply($scope.on_api_load)
     }, '/_ah/api');
     $scope.load_chart_api();
@@ -55,10 +60,23 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     return $scope.tasks.concat(_.values($scope.posted_tasks));
   }
 
+  $scope.unfinished = function() {
+    return _.filter($scope.concattasks(), function(task){return !task.finished;});
+  }
+
+  $scope.finished = function() {
+    return _.filter($scope.concattasks(), function(task){return task.finished;});
+  }
+
+  $scope.toggle_and_submit = function() {
+    $scope.submit(false, false, true, true);
+    $scope.toggleTimer();
+  }
+
   $scope.drawChart = function(){
     var header = [['Estimate', 'Actual']];
 
-    var dat_norm = _.map($scope.concattasks(),
+    var dat_norm = _.map($scope.finished(),
                     function(x){return [x.estimate / 60.0, (x.actual - x.estimate) / 60.0]});
 
     var default_append = function(obj, key, value){
@@ -118,6 +136,11 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     });
 
     $scope.calced_estimates = _.groupBy(group_stats, function(x) { return String(x[0]); });
+
+    $scope.update_estimate();
+    _.each($scope.concattasks(), function(task){
+      task['realestimate'] = $scope.calculate_realestimate(task.estimate / 60) * 60;
+    });
 
     var snap_to = 5;
     if (group_stats.length > 0) {
@@ -190,7 +213,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       return days_between(a, epoch);
     }
 
-    var dat_abs_day = _.groupBy(_.map($scope.concattasks(),
+    var dat_abs_day = _.groupBy(_.map($scope.finished(),
           function(x){return [days_since_epoch(x.date),
             $scope.days[x.date.getDay()], x.actual / 60.0]
           }),
@@ -226,7 +249,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       }
     }));
 
-    var oldest_group = _.groupBy($scope.concattasks(), function(x) { return x.date.getDay(); });
+    var oldest_group = _.groupBy($scope.finished(), function(x) { return x.date.getDay(); });
 
     var now = new Date();
     var days_recorded = {}
@@ -306,8 +329,12 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
 
   $scope.get_item_list = function(){
     gapi.client.tasktimer.tasks.listTasks().execute(function(resp){
-      if (resp.error){
-        console.log(resp);
+      if (!resp || resp.error){
+        if (!resp){
+          console.log('error contacting server!');
+        } else {
+          console.log(resp);
+        }
       } else {
         $scope.$apply(function(){
           if ('items' in resp) {
@@ -403,6 +430,26 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     }
   }
 
+  $scope.calculate_realestimate = function(estimate){
+      var estimate_key = String(Math.floor(estimate));
+      if (estimate_key in $scope.calced_estimates){
+        return estimate + (_.last($scope.calced_estimates[estimate_key][0]));
+      } else {
+        return estimate;
+      }
+  }
+
+  $scope.update_estimate = function(){
+    $scope.realestimate = $scope.calculate_realestimate($scope.estimate);
+    if ($scope.realestimate > 60) {
+      $scope.realestimate_class = "text-error";
+    } else if ($scope.realestimate > 30) {
+      $scope.realestimate_class = "text-warning";
+    } else {
+      $scope.realestimate_class = "text-default";
+    }
+  }
+
   $scope.onTimeout = function(){
     var newtime = new Date().getTime();
     $scope.elapsed = Math.floor(newtime - $scope.start) + $scope.time;
@@ -430,28 +477,114 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     }
   };
 
-  $scope.submit = function(){
-    if($scope.timer_running){
+  $scope.delete_task = function() {
+    if ($scope.task_id){
+      gapi.client.tasktimer.tasks.deleteTask({'task_id': $scope.task_id}).execute(
+          function(resp) {
+            if (!resp || resp.error){
+              if (!resp){
+                console.log('error contacting server!');
+              } else {
+                console.log(resp);
+              }
+            } else{
+              console.log('deleted ' + String($scope.task_id));
+              $scope.blank();
+              $scope.get_item_list();
+            }
+          });
+    } else {
+      $scope.blank();
+    }
+  }
+
+  $scope.set_task_id = function(task_id){
+    $scope.task_id = task_id;
+    if ($scope.task_id){
+      $scope.new_or_add_text = 'new';
+      $scope.delete_or_clear_text = 'delete';
+    } else {
+      $scope.new_or_add_text = 'add';
+      $scope.delete_or_clear_text = 'clear';
+    }
+  }
+
+  $scope.new_or_add = function(){
+    if ($scope.task_id){
+      $scope.submit($scope.done, false, false, false);
+      $scope.blank();
+    } else {
+      $scope.submit(false, false, true, true);
+    }
+  }
+
+  $scope.switch_to = function(task_id){
+    task = _.find($scope.concattasks(), function(x){
+      return x.task_id == String(task_id)});
+    if (!task) {
+      console.log('error! can\'t find task:' + String(task_id));
+      $scope.blank();
+      return;
+    }
+    if ($scope.timer_running) {
+      $scope.toggleTimer();
+      $scope.submit(false, false);
+    }
+    $scope.set_task_id(task.task_id);
+    $scope.time = task.actual;
+    $scope.estimate = Math.floor(task.estimate / 60);
+    $scope.name = task.name;
+    $scope.actual_mins = Math.floor(task.actual / 60);
+    $scope.actual_secs = Math.floor(task.actual % 60);
+  }
+
+  $scope.blank = function(){
+    $scope.set_task_id(null);
+    $scope.time = 0.0;
+    $scope.actual_mins = 0.0;
+    $scope.actual_secs = 0.0;
+    $scope.estimated = 0.0;
+    $scope.name = '';
+  }
+
+  $scope.submit = function(done, switch_to, keep_timer, switch_task){
+    if($scope.timer_running && !keep_timer){
       $scope.toggleTimer();
     }
-    if($scope.time > 0.0){
-      gapi.client.tasktimer.tasks.createTask(
-          {'name':$scope.name,
-           'estimate':$scope.estimate * 60,
-           'actual':$scope.time/1000,
-           'finished':true
-          }).execute(function(resp) {
+    if(!done || $scope.time > 0.0){
+      mytask = {'name':$scope.name,
+        'estimate':$scope.estimate * 60,
+        'actual':$scope.time/1000,
+        'finished':done,
+      }
+      if ($scope.task_id != undefined){
+        mytask['task_id'] = Number($scope.task_id);
+      }
+      gapi.client.tasktimer.tasks.createOrUpdateTask(mytask).execute(
+          function(resp) {
             if (resp.error){
-              consoel.log(resp);
+              console.log(resp);
             } else{
               resp.date = new Date(resp.modified);
-              $scope.posted_tasks[String(resp.task_id)] = resp;
+              if (!_.contains(_.pluck($scope.concattasks(), 'id'),
+                String(resp.task_id))){
+                $scope.posted_tasks[String(resp.task_id)] = resp;
+              }
+              if (done){
+                $scope.$apply(function(){
+                  $scope.blank();
+                });
+              } else {
+                if (switch_task) {
+                  $scope.set_task_id(resp.task_id);
+                }
+                if (switch_to){
+                  $scope.$apply(function(){
+                    $scope.switch_to(resp.task_id);
+                  });
+                }
+              }
               $scope.$apply(function(){
-                $scope.time = 0.0;
-                $scope.actual_mins = 0.0;
-                $scope.actual_secs = 0.0;
-                $scope.estimated = 0.0;
-                $scope.name = '';
                 $scope.get_item_list();
               });
             }
