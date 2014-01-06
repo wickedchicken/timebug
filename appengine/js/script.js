@@ -367,6 +367,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
           return 0; // avoid inf loop
         }
         while (left > 0){
+          startday = (startday + 1) % $scope.days.length;
           if ($scope.days[startday] in $scope.calced_day_estimates) {
             var day_data = $scope.calced_day_estimates[$scope.days[startday]][0];
             if (upper){
@@ -378,7 +379,6 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
           if (left > 0) {
             total_days += 1;
           }
-          startday = (startday + 1) % $scope.days.length;
         }
         return total_days;
       }
