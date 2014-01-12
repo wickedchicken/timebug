@@ -25,6 +25,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   $scope.actual_mins = 0.0;
   $scope.actual_secs = 0.0;
   $scope.tasks = [];
+  $scope.are_unfinished = false;
   $scope.days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   $scope.posted_tasks = {};
   $window.init = function() {
@@ -62,6 +63,10 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
 
   $scope.unfinished = function() {
     return _.filter($scope.concattasks(), function(task){return !task.finished;});
+  }
+
+  $scope.calc_unfinished = function(){
+    $scope.are_unfinished = Boolean($scope.unfinished().length);
   }
 
   $scope.finished = function() {
@@ -346,6 +351,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
             $scope.posted_tasks = _.filter($scope.posted_tasks, function (x) {
               return !_.contains(task_ids, x);
             });
+            $scope.calc_unfinished();
             $scope.drawChart();
           }
         });
