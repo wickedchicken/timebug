@@ -65,10 +65,10 @@ ALLOWED_CLIENT_IDS = [
     endpoints.API_EXPLORER_CLIENT_ID
 ]
 
-@endpoints.api(name='tasktimer', version='v1',
+@endpoints.api(name='tasktimer', version='v3',
     allowed_client_ids=ALLOWED_CLIENT_IDS)
 class TaskTimerApi(remote.Service):
-  """TaskTimer API v1."""
+  """TaskTimer API v3."""
 
   @staticmethod
   def get_user():
@@ -82,13 +82,23 @@ class TaskTimerApi(remote.Service):
 
   @endpoints.method(Task, Task,
                     path='tasks', http_method='POST',
-                    name='tasks.createTask')
-  def create_task(self, request):
+                    name='tasks.createOrUpdateTask')
+  def create_or_update_task(self, request):
     user = self.get_user()
-    db_task = one_task_to_another(models.Task, request,
-        parent=self.get_user_ancestor())
-    db_task.put()
+    if hasattr(request, 'task_id') and request.task_id:
+      db_task = ndb.Key('User', self.get_user_ancestor(),
+          'Task', request.task_id).get()
+      if not db_task:
+        raise endpoints.NotFoundException('task \'%s\' not found' %
+            (request.task_id,))
+      else:
+        update_db_task(db_task, request)
+    else:
+      db_task = one_task_to_another(models.Task, request,
+          parent=self.get_user_ancestor())
+
     # db_task should have a key now.
+    db_task.put()
     return one_task_to_another(Task, db_task)
 
   @endpoints.method(message_types.VoidMessage, TaskCollection,
@@ -102,25 +112,6 @@ class TaskTimerApi(remote.Service):
       tasks.append(one_task_to_another(Task, task))
     return TaskCollection(items=tasks)
 
-  TASK_POST_RESOURCE = endpoints.ResourceContainer(
-      Task,
-      req_task_id=messages.IntegerField(2, variant=messages.Variant.INT64,
-        required=True))
-  @endpoints.method(TASK_POST_RESOURCE, Task,
-                    path='tasks/{req_task_id}', http_method='POST',
-                    name='tasks.updateTask')
-  def update_task(self, request):
-    user = self.get_user()
-    db_task = models.Task.get_by_id(request.req_task_id,
-        parent=ndb.Key(models.Task, self.get_user_ancestor()))
-    if not db_task:
-      raise endpoints.NotFoundException('task %s not found' %
-          (request.req_task_id,))
-    else:
-      update_db_task(db_task, request)
-    db_task.put()
-    return one_task_to_another(Task, db_task)
-
   TASK_GET_RESOURCE = endpoints.ResourceContainer(
       message_types.VoidMessage,
       task_id=messages.IntegerField(2, variant=messages.Variant.INT64,
@@ -130,13 +121,26 @@ class TaskTimerApi(remote.Service):
                     name='tasks.getTask')
   def get_task(self, request):
     user = self.get_user()
-    db_task = models.Task.get_by_id(request.task_id,
-        parent=self.get_user_ancestor())
+    db_task = ndb.Key('User', self.get_user_ancestor(),
+        'Task', task_id).get()
     if not db_task:
       raise endpoints.NotFoundException('task %s not found' %
           (request.task_id,))
     else:
       return one_task_to_another(Task, db_task)
+
+  TASK_DELETE_RESOURCE = endpoints.ResourceContainer(
+      message_types.VoidMessage,
+      task_id=messages.IntegerField(2, variant=messages.Variant.INT64,
+        required=True))
+  @endpoints.method(TASK_DELETE_RESOURCE, message_types.VoidMessage,
+                    path='tasks/{task_id}', http_method='DELETE',
+                    name='tasks.deleteTask')
+  def delete_task(self, request):
+    user = self.get_user()
+    ndb.Key('User', self.get_user_ancestor(),
+        'Task', request.task_id).delete()
+    return message_types.VoidMessage()
 
   @endpoints.method(User, message_types.VoidMessage,
                     path='user', http_method='POST',
