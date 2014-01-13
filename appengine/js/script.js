@@ -572,7 +572,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
               console.log(resp);
             } else{
               resp.date = new Date(resp.modified);
-              if (!_.contains(_.pluck($scope.concattasks(), 'id'),
+              if (!_.contains(_.pluck($scope.concattasks(), 'task_id'),
                 String(resp.task_id))){
                 $scope.posted_tasks[String(resp.task_id)] = resp;
               }
