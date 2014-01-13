@@ -78,6 +78,83 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     $scope.toggleTimer();
   }
 
+  $scope.do_binpack = function(){
+    var get_tuple = function(date){
+      if ($scope.days[date.getDay()] in $scope.calced_day_estimates) {
+        var cap = _.last(
+            $scope.calced_day_estimates[$scope.days[date.getDay()]][0]);
+      } else {
+        var cap = 0.0;
+      }
+
+      return {'date': date,
+              'count': 0.0,
+              'capacity': cap * 60};
+    }
+
+    if (_.keys($scope.calced_day_estimates).length < 1){
+      _.each($scope.unfinished(), function(x) {
+        x['day_estimate'] = null;
+      });
+      console.log('kurt nougat');
+      return;
+    }
+
+    var days = [];
+    var today = new Date;
+    days.push(get_tuple(today));
+    var fill_days = _.filter($scope.finished(), function(x) {
+      return $scope.days_since_epoch(today) == $scope.days_since_epoch(
+        new Date(x['modified']));
+    });
+    var fill = _.reduce(
+        fill_days, function(x, y){ return x + y['actual']; }, 0.0);
+    days[0]['count'] = fill;
+
+    var add_new_day = function(){
+      var date = new Date(_.last(days)['date'].getTime());
+      date.setDate(date.getDate() + 1);
+      days.push(get_tuple(date));
+    }
+
+    var max_capacity = _.max(_.map(_.values($scope.calced_day_estimates),
+          function(x) {
+            return _.last(x[0]);
+          })) * 60;
+
+    var capacity_left = function(x) {
+      return x['capacity'] - x['count'];
+    }
+
+    // first-fit algorithm
+    _.each($scope.unfinished(), function(x){
+      if (x['realestimate'] > max_capacity){
+        x['day_estimate'] = null;
+      } else {
+        var idx = 0;
+        while(capacity_left(days[idx]) < x['realestimate']){
+          idx = idx + 1;
+          if (idx > (days.length - 1)) {
+            add_new_day();
+          }
+        }
+        x['day_estimate'] = days[idx]['date'];
+        days[idx]['count'] = days[idx]['count'] + x['realestimate'];
+      }
+    });
+  }
+
+  $scope.days_between = function(a, b){
+    // this is kind of wrong due to daylight savings, leap years etc.
+    return Math.round(Math.abs(
+          (a.getTime() - b.getTime())/(24*60*60*1000)));
+  }
+
+  $scope.days_since_epoch = function(a){
+    var epoch = new Date(70,1,1);
+    return $scope.days_between(a, epoch);
+  }
+
   $scope.drawChart = function(){
     var header = [['Estimate', 'Actual']];
 
@@ -208,18 +285,8 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     var chart_norm = new google.visualization.ScatterChart(document.getElementById('chart_div2'));
     chart_norm.draw(data_norm, options_norm);
 
-    var days_between = function(a, b){
-      return Math.round(Math.abs(
-            (a.getTime() - b.getTime())/(24*60*60*1000)));
-    }
-
-    var days_since_epoch = function(a){
-      var epoch = new Date(70,1,1);
-      return days_between(a, epoch);
-    }
-
     var dat_abs_day = _.groupBy(_.map($scope.finished(),
-          function(x){return [days_since_epoch(x.date),
+          function(x){return [$scope.days_since_epoch(x.date),
             $scope.days[x.date.getDay()], x.actual / 60.0]
           }),
         function(x){
@@ -260,10 +327,11 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     var days_recorded = {}
     _.map(oldest_group, function(tasks, k){
       var old = _.first(_.sortBy(tasks, function(x) { return x.date; }));
-      days_recorded[$scope.days[tasks[0].date.getDay()]] = 1 + days_between(old.date, now);
+      days_recorded[$scope.days[tasks[0].date.getDay()]] = 1 + $scope.days_between(old.date, now);
     });
 
     $scope.calced_day_estimates = _.groupBy(group_stats, function(x) { return x[0]; });
+    $scope.do_binpack();
 
     // The intervals data as narrow lines (useful for showing raw source
     // data)

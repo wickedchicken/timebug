@@ -39,11 +39,12 @@
       </table>
       <table class="table table-striped" ng-show="are_unfinished">
         <tr><td>Unfinished Tasks</td></tr>
-        <tr><td>Task</td><td>Estimated Time</td><td>Real Estimate</td><td></td></tr>
+        <tr><td>Task</td><td>Estimated Time</td><td>Real Estimate</td><td>Projected Date</td></tr>
         <tr ng-repeat="task in unfinished()">
           <td>{{ '{{task.name}}' }}</td>
           <td>{{ '{{task.estimate / 60 | number:0}}' }}m {{ '{{task.estimate % 60 | number:0}}s' }}</td>
           <td>{{ '{{task.realestimate / 60 | number:0}}' }}m {{ '{{task.realestimate % 60 | number:0}}s' }}</td>
+          <td>{{ '{{task.day_estimate | date:\'EEE yyyy-MM-dd\'}}' }}</td>
           <td><button ng-click="switch_to(task.task_id)">focus</button></td>
         </tr>
       </table>
