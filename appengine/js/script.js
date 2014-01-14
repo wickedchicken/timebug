@@ -96,7 +96,6 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       _.each($scope.unfinished(), function(x) {
         x['day_estimate'] = null;
       });
-      console.log('kurt nougat');
       return;
     }
 
@@ -320,15 +319,6 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
         return [x, null, null, null, null, null, null];
       }
     }));
-
-    var oldest_group = _.groupBy($scope.finished(), function(x) { return x.date.getDay(); });
-
-    var now = new Date();
-    var days_recorded = {}
-    _.map(oldest_group, function(tasks, k){
-      var old = _.first(_.sortBy(tasks, function(x) { return x.date; }));
-      days_recorded[$scope.days[tasks[0].date.getDay()]] = 1 + $scope.days_between(old.date, now);
-    });
 
     $scope.calced_day_estimates = _.groupBy(group_stats, function(x) { return x[0]; });
     $scope.do_binpack();
