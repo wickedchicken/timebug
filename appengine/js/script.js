@@ -213,7 +213,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     }
 
     var group_stats = _.map(grouped, function(x, key) {
-      return [Number(key)].concat(stats(x));
+      return [Number(key)].concat(_.map(stats(x), Math.floor));
     });
 
     $scope.calced_estimates = _.groupBy(group_stats, function(x) { return String(x[0]); });
@@ -272,6 +272,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     // Set chart options
     var options_norm = {'title':'Prediction vs Reality Difference',
       hAxis: {baseline: 0,
+        legend: 'none',
         viewWindowMode: 'explicit',
         viewWindow: {
           max: max_chart_value
@@ -298,7 +299,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     });
     var grouped = _.reduce(dat_abs, function(x, y) {return default_append(x, y[0], y[1])}, {});
     var group_stats = _.map(grouped, function(x, key) {
-      return [key].concat(stats(x));
+      return [key].concat(_.map(stats(x), Math.floor));
     });
 
     var data = new google.visualization.DataTable();
