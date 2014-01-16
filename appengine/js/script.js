@@ -78,6 +78,21 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     $scope.toggleTimer();
   }
 
+  $scope.get_fill_for_date = function(date){
+    var fill_days = _.filter($scope.finished(), function(x) {
+      return $scope.days_since_epoch(date) == $scope.days_since_epoch(
+        new Date(x['modified']));
+    });
+    var dow = $scope.days[date.getDay()]
+    if (fill_days.length == 0) {
+      return [dow, null];
+    }
+    var fill = _.reduce(
+        fill_days, function(x, y){ return x + y['actual']; }, 0.0);
+
+    return [dow, fill];
+  }
+
   $scope.do_binpack = function(){
     var get_tuple = function(date){
       if ($scope.days[date.getDay()] in $scope.calced_day_estimates) {
@@ -102,13 +117,12 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     var days = [];
     var today = new Date;
     days.push(get_tuple(today));
-    var fill_days = _.filter($scope.finished(), function(x) {
-      return $scope.days_since_epoch(today) == $scope.days_since_epoch(
-        new Date(x['modified']));
-    });
-    var fill = _.reduce(
-        fill_days, function(x, y){ return x + y['actual']; }, 0.0);
-    days[0]['count'] = fill;
+    var fill = $scope.get_fill_for_date(today)[1];
+    if (fill != null) {
+      days[0]['count'] = fill;
+    } else {
+      days[0]['count'] = 0.0;
+    }
 
     var add_new_day = function(){
       var date = new Date(_.last(days)['date'].getTime());
@@ -298,8 +312,15 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
           function(x,y){ return x + y;}, 0.0)]);
     });
     var grouped = _.reduce(dat_abs, function(x, y) {return default_append(x, y[0], y[1])}, {});
+    var fill = $scope.get_fill_for_date(new Date());
     var group_stats = _.map(grouped, function(x, key) {
-      return [key].concat(_.map(stats(x), Math.floor));
+      var stat = _.map(stats(x), Math.floor);
+      if (key === fill[0]){
+        var day_fill = fill[1] / 60;
+      } else {
+        var day_fill = null;
+      }
+      return [key].concat(stat.slice(0, -1)).concat([day_fill]).concat(stat.slice(-1))
     });
 
     var data = new google.visualization.DataTable();
@@ -309,6 +330,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     data.addColumn({id:'i1', type:'number', role:'interval'});
     data.addColumn({id:'i2', type:'number', role:'interval'});
     data.addColumn({id:'i3', type:'number', role:'interval'});
+    data.addColumn({id:'today', type:'number', role:'interval'});
     data.addColumn({id:'i0', type:'number', role:'interval'});
 
 
@@ -317,7 +339,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       if (data !== undefined){
         return data;
       } else {
-        return [x, null, null, null, null, null, null];
+        return [x, null, null, null, null, null, null, null];
       }
     }));
 
@@ -330,12 +352,12 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
         title: 'Per day throughput',
         curveType: 'function',
         series: [{'color': '#CC66FF'}],
-        intervals: { style: 'bars' },
         lineWidth: 0,
         legend: 'none',
         width: 400,
         height: 300,
-        intervals: { 'lineWidth': 1.5, 'barWidth': 0.3 },
+        intervals: {'style': 'bars',  'lineWidth': 1.5, 'barWidth': 0.3 },
+        interval: {today: {'color': '#F1CA3A', 'shortBarWidth': 1.2}}
     };
 
     var chart_lines = new google.visualization.LineChart(document.getElementById('chart_div3'));
