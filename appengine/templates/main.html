@@ -44,7 +44,7 @@
           <td>{{ '{{task.name}}' }}</td>
           <td>{{ '{{task.estimate / 60 | number:0}}' }}m {{ '{{task.estimate % 60 | number:0}}s' }}</td>
           <td>{{ '{{task.realestimate / 60 | number:0}}' }}m {{ '{{task.realestimate % 60 | number:0}}s' }}</td>
-          <td>{{ '{{task.day_estimate | date:\'EEE yyyy-MM-dd\'}}' }}</td>
+          <td>{{ '{{task.day_estimate.format(\'ddd YYYY-MM-DD\')}}' }}</td>
           <td><button ng-click="switch_to(task.task_id)">focus</button></td>
         </tr>
       </table>

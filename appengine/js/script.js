@@ -80,10 +80,10 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
 
   $scope.get_fill_for_date = function(date){
     var fill_days = _.filter($scope.finished(), function(x) {
-      return $scope.days_since_epoch(date) == $scope.days_since_epoch(
-        new Date(x['modified']));
+      var m = moment(x['modified']);
+      return (date.year() === m.year()) && (date.dayOfYear() === m.dayOfYear());
     });
-    var dow = $scope.days[date.getDay()]
+    var dow = date.format('ddd')
     if (fill_days.length == 0) {
       return [dow, null];
     }
@@ -95,9 +95,9 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
 
   $scope.do_binpack = function(){
     var get_tuple = function(date){
-      if ($scope.days[date.getDay()] in $scope.calced_day_estimates) {
+      if (date.format('ddd') in $scope.calced_day_estimates) {
         var cap = _.last(
-            $scope.calced_day_estimates[$scope.days[date.getDay()]][0]);
+            $scope.calced_day_estimates[date.format('ddd')][0]);
       } else {
         var cap = 0.0;
       }
@@ -115,7 +115,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     }
 
     var days = [];
-    var today = new Date;
+    var today = moment();
     days.push(get_tuple(today));
     var fill = $scope.get_fill_for_date(today)[1];
     if (fill != null) {
@@ -125,8 +125,8 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     }
 
     var add_new_day = function(){
-      var date = new Date(_.last(days)['date'].getTime());
-      date.setDate(date.getDate() + 1);
+      var date = moment(_.last(days)['date']);
+      date.add('days', 1);
       days.push(get_tuple(date));
     }
 
@@ -155,17 +155,6 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
         days[idx]['count'] = days[idx]['count'] + x['realestimate'];
       }
     });
-  }
-
-  $scope.days_between = function(a, b){
-    // this is kind of wrong due to daylight savings, leap years etc.
-    return Math.round(Math.abs(
-          (a.getTime() - b.getTime())/(24*60*60*1000)));
-  }
-
-  $scope.days_since_epoch = function(a){
-    var epoch = new Date(70,1,1);
-    return $scope.days_between(a, epoch);
   }
 
   $scope.drawChart = function(){
@@ -300,8 +289,9 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     chart_norm.draw(data_norm, options_norm);
 
     var dat_abs_day = _.groupBy(_.map($scope.finished(),
-          function(x){return [$scope.days_since_epoch(x.date),
-            $scope.days[x.date.getDay()], x.actual / 60.0]
+          function(x){
+            return [x.date.format('YYYY-MM-DD'),
+                    x.date.format('ddd'), x.actual / 60.0];
           }),
         function(x){
           return x[0];
@@ -312,7 +302,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
           function(x,y){ return x + y;}, 0.0)]);
     });
     var grouped = _.reduce(dat_abs, function(x, y) {return default_append(x, y[0], y[1])}, {});
-    var fill = $scope.get_fill_for_date(new Date());
+    var fill = $scope.get_fill_for_date(moment());
     var group_stats = _.map(grouped, function(x, key) {
       var stat = _.map(stats(x), Math.floor);
       if (key === fill[0]){
@@ -425,7 +415,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
         $scope.$apply(function(){
           if ('items' in resp) {
             $scope.tasks = resp.items;
-            _.each($scope.tasks, function (x) { x.date = new Date(x.modified); });
+            _.each($scope.tasks, function (x) { x.date = moment(x.modified); });
             var task_ids = _.map($scope.tasks, function(x) {
               return String(x.task_id);
             });
@@ -652,7 +642,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
             if (resp.error){
               console.log(resp);
             } else{
-              resp.date = new Date(resp.modified);
+              resp.date = moment(resp.modified);
               if (!_.contains(_.pluck($scope.concattasks(), 'task_id'),
                 String(resp.task_id))){
                 $scope.posted_tasks[String(resp.task_id)] = resp;
