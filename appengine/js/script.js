@@ -87,6 +87,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     if (fill_days.length == 0) {
       return [dow, null];
     }
+    console.log(fill_days);
     var fill = _.reduce(
         fill_days, function(x, y){ return x + y['actual']; }, 0.0);
 
