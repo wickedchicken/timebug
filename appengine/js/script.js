@@ -316,7 +316,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     var group_stats = _.map(grouped, function(x, key) {
       var stat = _.map(stats(x), Math.floor);
       if (key === fill[0]){
-        var day_fill = fill[1] / 60;
+        var day_fill = Math.floor(fill[1] / 60);
       } else {
         var day_fill = null;
       }
