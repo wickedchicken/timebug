@@ -80,7 +80,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
 
   $scope.get_fill_for_date = function(date){
     var fill_days = _.filter($scope.finished(), function(x) {
-      var m = moment(x['modified']);
+      var m = moment(x['modified'], 'YYYY-MM-DDTHH:mm Z');
       return (date.year() === m.year()) && (date.dayOfYear() === m.dayOfYear());
     });
     var dow = date.format('ddd')
@@ -415,7 +415,8 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
         $scope.$apply(function(){
           if ('items' in resp) {
             $scope.tasks = resp.items;
-            _.each($scope.tasks, function (x) { x.date = moment(x.modified); });
+            _.each($scope.tasks, function (x) { x.date = moment(x.modified,
+                'YYYY-MM-DDTHH:mm Z'); });
             var task_ids = _.map($scope.tasks, function(x) {
               return String(x.task_id);
             });
@@ -642,7 +643,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
             if (resp.error){
               console.log(resp);
             } else{
-              resp.date = moment(resp.modified);
+              resp.date = moment(resp.modified, 'YYYY-MM-DDTHH:mm Z');
               if (!_.contains(_.pluck($scope.concattasks(), 'task_id'),
                 String(resp.task_id))){
                 $scope.posted_tasks[String(resp.task_id)] = resp;
