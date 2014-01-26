@@ -36,7 +36,7 @@ class Task(messages.Message):
   name = messages.StringField(16)
 
 def update_db_task(db_task, request_task):
-  for i in ['estimate', 'actual', 'finished', 'modified', 'created', 'name']:
+  for i in ['estimate', 'actual', 'finished', 'modified', 'name']:
     if i in (x.name for x in request_task.all_fields()):
       setattr(db_task, i, getattr(request_task, i))
 
