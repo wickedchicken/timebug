@@ -25,6 +25,8 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   $scope.actual_mins = 0.0;
   $scope.actual_secs = 0.0;
   $scope.tasks = [];
+  $scope.order = [];
+  $scope.order_initialized = false;
   $scope.are_unfinished = false;
   $scope.days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   $scope.posted_tasks = {};
@@ -38,7 +40,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     gapi.client.load('oauth2', 'v2', function() {
       $scope.$apply($scope.on_api_load)
     });
-    gapi.client.load('tasktimer', 'v3', function() {
+    gapi.client.load('tasktimer', 'v4', function() {
       $scope.$apply($scope.on_api_load)
     }, '/_ah/api');
     $scope.load_chart_api();
@@ -65,6 +67,15 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     return _.filter($scope.concattasks(), function(task){return !task.finished;});
   }
 
+  $scope.unfinished_sorted = function() {
+    $scope.get_task_order();
+
+    // inefficient
+    return _.sortBy($scope.unfinished(), function(x) {
+      return _.indexOf($scope.order, x.task_id);
+    });
+  }
+
   $scope.calc_unfinished = function(){
     $scope.are_unfinished = Boolean($scope.unfinished().length);
   }
@@ -76,6 +87,85 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   $scope.toggle_and_submit = function() {
     $scope.submit(false, false, true, true);
     $scope.toggleTimer();
+  }
+
+  $scope.fill_in_order = function() {
+    var existing_tasks = _.pluck($scope.unfinished(), 'task_id');
+    $scope.order = _.filter($scope.order, function(x) {
+      return _.contains(existing_tasks, x);
+    });
+
+    var new_tasks = _.map(_.filter($scope.unfinished(), function(x) {
+      return !(_.contains($scope.order, x.task_id));
+    }), function(x) { return x.task_id; });
+    if (new_tasks.length > 0) {
+      $scope.order = $scope.order.concat(new_tasks);
+      $scope.set_task_order_smooth();
+    }
+  }
+
+  $scope.get_task_order = function() {
+    if ($scope.is_authorized) {
+      if (!$scope.order_initialized) {
+        gapi.client.tasktimer.tasks.getTaskOrder().execute(function(resp){
+          if (!resp || resp.error){
+            if (!resp){
+              console.log('error contacting server!');
+            } else {
+              console.log(resp);
+            }
+          } else {
+            $scope.$apply(function(){
+              $scope.order_initialized = true;
+              if ('ordering' in resp) {
+                $scope.order = resp.ordering;
+                $scope.fill_in_order();
+              }
+            });
+          }
+        });
+      } else {
+        $scope.fill_in_order();
+      }
+    }
+  }
+
+  $scope.set_task_order = function(){
+    gapi.client.tasktimer.tasks.setTaskOrder({'ordering': $scope.order}).execute(function(resp){
+      if (!resp || resp.error){
+        if (!resp){
+          console.log('error contacting server!');
+        } else {
+          console.log(resp);
+        }
+      }
+    });
+  }
+
+  $scope.set_task_order_smooth = _.debounce($scope.set_task_order, 3000);
+
+  $scope.moveup = function(task_id) {
+    $scope.get_task_order();
+    var index = _.indexOf($scope.order, task_id);
+    if (index > 0) {
+      var temp = $scope.order[index-1];
+      $scope.order[index-1] = task_id;
+      $scope.order[index] = temp;
+      $scope.do_binpack();
+      $scope.set_task_order_smooth();
+    }
+  }
+
+  $scope.movedown = function(task_id) {
+    $scope.get_task_order();
+    var index = _.indexOf($scope.order, task_id);
+    if (index < (_.size($scope.order) - 1)) {
+      var temp = $scope.order[index+1];
+      $scope.order[index+1] = task_id;
+      $scope.order[index] = temp;
+      $scope.do_binpack();
+      $scope.set_task_order_smooth();
+    }
   }
 
   $scope.get_fill_for_date = function(date){
@@ -140,7 +230,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     }
 
     // first-fit algorithm
-    _.each($scope.unfinished(), function(x){
+    _.each($scope.unfinished_sorted(), function(x){
       if (x['realestimate'] > max_capacity){
         x['day_estimate'] = null;
       } else {
@@ -423,6 +513,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
             $scope.posted_tasks = _.filter($scope.posted_tasks, function (x) {
               return !_.contains(task_ids, x);
             });
+            $scope.get_task_order();
             $scope.calc_unfinished();
             $scope.drawChart();
           }
