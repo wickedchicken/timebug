@@ -102,6 +102,16 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       $scope.order = $scope.order.concat(new_tasks);
       $scope.set_task_order_smooth();
     }
+
+    var concat = $scope.concattasks();
+    var idx = 0;
+    _.each($scope.order, function(x) {
+      var task = _.findWhere(concat, {'task_id': x});
+      if (task && !task.finished) {
+        task.ordering = idx;
+        idx = idx + 1;
+      }
+    });
   }
 
   $scope.get_task_order = function() {
