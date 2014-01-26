@@ -90,11 +90,6 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   }
 
   $scope.fill_in_order = function() {
-    var existing_tasks = _.pluck($scope.unfinished(), 'task_id');
-    $scope.order = _.filter($scope.order, function(x) {
-      return _.contains(existing_tasks, x);
-    });
-
     var new_tasks = _.map(_.filter($scope.unfinished(), function(x) {
       return !(_.contains($scope.order, x.task_id));
     }), function(x) { return x.task_id; });
