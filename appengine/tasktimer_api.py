@@ -1,5 +1,8 @@
 """Tasktimer API implemented using Google Cloud Endpoints."""
 
+import json
+import os
+import sys
 
 import endpoints
 import logging
@@ -10,6 +13,14 @@ from protorpc import remote
 import models
 
 from google.appengine.ext import ndb
+
+SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(
+  SCRIPT_PATH, 'third_party', 'gcs-client-python', 'src'))
+
+import cloudstorage
+
+BUCKET='/task-data'
 
 class User(messages.Message):
   last_seen_email = messages.StringField(2)
@@ -56,8 +67,12 @@ def one_task_to_another(target_class, other_task, parent=None):
 
   return target
 
+class TaskOrder(messages.Message):
+  """Ordering of tasks."""
+  ordering = messages.IntegerField(1, repeated=True)
+
 class TaskCollection(messages.Message):
-  """Collection of Greetings."""
+  """Collection of tasks."""
   items = messages.MessageField(Task, 1, repeated=True)
 
 ALLOWED_CLIENT_IDS = [
@@ -65,10 +80,10 @@ ALLOWED_CLIENT_IDS = [
     endpoints.API_EXPLORER_CLIENT_ID
 ]
 
-@endpoints.api(name='tasktimer', version='v3',
+@endpoints.api(name='tasktimer', version='v4',
     allowed_client_ids=ALLOWED_CLIENT_IDS)
 class TaskTimerApi(remote.Service):
-  """TaskTimer API v3."""
+  """TaskTimer API v4."""
 
   @staticmethod
   def get_user():
@@ -154,5 +169,36 @@ class TaskTimerApi(remote.Service):
         request.wants_email)
 
     return message_types.VoidMessage()
+
+  @endpoints.method(message_types.VoidMessage, TaskOrder,
+                    path='task_order', http_method='GET',
+                    name='tasks.getTaskOrder')
+  def get_task_order(self, request):
+    user = self.get_user_ancestor()
+    filename = '%s/%s/task_order' % (BUCKET, user)
+    try:
+      logging.info('loading file %s', filename)
+      with cloudstorage.open(filename) as f:
+        logging.debug('file %s loaded', filename)
+        l = json.load(f)
+    except cloudstorage.errors.NotFoundError:
+      logging.debug('file %s not found`', filename)
+      l = {'ordering': []}
+
+    return TaskOrder(ordering=l['ordering'])
+
+  @endpoints.method(TaskOrder, message_types.VoidMessage,
+                    path='task_order', http_method='POST',
+                    name='tasks.setTaskOrder')
+  def set_task_order(self, request):
+    user = self.get_user_ancestor()
+    filename = '%s/%s/task_order' % (BUCKET, user)
+    l = request.ordering
+    with cloudstorage.open(filename, mode='w',
+        content_type='application/json') as f:
+      json.dump({'ordering': l}, f)
+
+    return message_types.VoidMessage()
+
 
 app = endpoints.api_server([TaskTimerApi])
