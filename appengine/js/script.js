@@ -524,6 +524,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   $scope.handleAuthResult = function(callback){
     return function(authResult) {
       if (authResult && !authResult.error) {
+        $timeout($scope.refresh_token, 45 * 60 * 1000);
         callback();
       } else {
         $scope.$apply(function(){
@@ -552,6 +553,13 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
         $scope.is_authorized = false;
         $scope.username = false;
       });
+  }
+
+  $scope.refresh_token = function() {
+    if ($scope.is_authorized) {
+      gapi.auth.authorize({client_id: $scope.clientId, scope: $scope.apiscopes,
+        immediate: true}, $scope.handleAuthResult($scope.do_auth));
+    }
   }
 
   $scope.get_item_list = function(){
