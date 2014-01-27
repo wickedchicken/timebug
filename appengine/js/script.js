@@ -142,7 +142,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     });
   }
 
-  $scope.set_task_order_smooth = _.debounce($scope.set_task_order, 3000);
+  $scope.set_task_order_smooth = _.debounce($scope.set_task_order, 1000);
 
   $scope.moveup = function(task_id) {
     $scope.get_task_order();
