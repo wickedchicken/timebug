@@ -12,6 +12,7 @@ from protorpc import remote
 
 import models
 
+from google.appengine.api import memcache
 from google.appengine.ext import ndb
 
 SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -175,15 +176,23 @@ class TaskTimerApi(remote.Service):
                     name='tasks.getTaskOrder')
   def get_task_order(self, request):
     user = self.get_user_ancestor()
-    filename = '%s/%s/task_order' % (BUCKET, user)
-    try:
-      logging.info('loading file %s', filename)
-      with cloudstorage.open(filename) as f:
-        logging.debug('file %s loaded', filename)
-        l = json.load(f)
-    except cloudstorage.errors.NotFoundError:
-      logging.debug('file %s not found`', filename)
-      l = {'ordering': []}
+    memcache_key = '%s:task_order' % user
+    cached_data = memcache.get(memcache_key)
+    if cached_data is not None:
+      l = cached_data
+    else:
+      filename = '%s/%s/task_order' % (BUCKET, user)
+      try:
+        logging.info('loading file %s', filename)
+        with cloudstorage.open(filename) as f:
+          logging.debug('file %s loaded', filename)
+          l = json.load(f)
+      except cloudstorage.errors.NotFoundError:
+        logging.debug('file %s not found`', filename)
+        l = {'ordering': []}
+
+      if not memcache.set(memcache_key, l):
+        logging.error('Memcache set failed.')
 
     return TaskOrder(ordering=l['ordering'])
 
@@ -192,11 +201,15 @@ class TaskTimerApi(remote.Service):
                     name='tasks.setTaskOrder')
   def set_task_order(self, request):
     user = self.get_user_ancestor()
+    memcache_key = '%s:task_order' % user
     filename = '%s/%s/task_order' % (BUCKET, user)
     l = request.ordering
     with cloudstorage.open(filename, mode='w',
         content_type='application/json') as f:
-      json.dump({'ordering': l}, f)
+      payload = {'ordering': list(l)}
+      json.dump(payload, f)
+      if not memcache.set(memcache_key, payload):
+        logging.error('Memcache set failed.')
 
     return message_types.VoidMessage()
 
