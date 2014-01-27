@@ -43,6 +43,7 @@ def update_db_task(db_task, request_task):
 
 def one_task_to_another(target_class, other_task, parent=None):
   if parent and target_class != Task:
+    # database
     parent_key=ndb.Key(models.User, parent)
 
     target = target_class(
@@ -51,10 +52,10 @@ def one_task_to_another(target_class, other_task, parent=None):
         actual=other_task.actual,
         finished=other_task.finished,
         modified=other_task.modified,
-        created=other_task.created,
         name=other_task.name)
     logging.info(str(target))
   else:
+    # protobuf
     target = target_class(
         estimate=other_task.estimate,
         actual=other_task.actual,

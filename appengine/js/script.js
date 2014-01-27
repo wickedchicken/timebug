@@ -10,6 +10,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
   $scope.realestimate_class = "text-default";
   $scope.calced_estimates = {};
   $scope.calced_day_estimates = {};
+  $scope.calced_generated_day_estimates = {};
   $scope.estimates = '';
   $scope.estimate_text = '';
   $scope.username = 'unauthorized';
@@ -173,9 +174,9 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     }
   }
 
-  $scope.get_fill_for_date = function(date){
-    var fill_days = _.filter($scope.finished(), function(x) {
-      var m = moment(x['modified'], 'YYYY-MM-DDTHH:mm Z');
+  $scope.get_fill_for_date = function(date, type, metric, source){
+    var fill_days = _.filter(source, function(x) {
+      var m = moment(x[type], 'YYYY-MM-DDTHH:mm Z');
       return (date.year() === m.year()) && (date.dayOfYear() === m.dayOfYear());
     });
     var dow = date.format('ddd')
@@ -183,23 +184,31 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       return [dow, null];
     }
     var fill = _.reduce(
-        fill_days, function(x, y){ return x + y['actual']; }, 0.0);
+        fill_days, function(x, y){ return x + y[metric]; }, 0.0);
 
     return [dow, fill];
   }
 
   $scope.do_binpack = function(){
-    var get_tuple = function(date){
-      if (date.format('ddd') in $scope.calced_day_estimates) {
+    var get_tuple = function(day){
+      if (day in $scope.calced_day_estimates) {
         var cap = _.last(
-            $scope.calced_day_estimates[date.format('ddd')][0]);
+            $scope.calced_day_estimates[day][0]);
       } else {
         var cap = 0.0;
       }
 
-      return {'date': date,
-              'count': 0.0,
-              'capacity': cap * 60};
+      if (day in $scope.calced_generated_day_estimates) {
+        var gen = _.last(
+            $scope.calced_generated_day_estimates[day][0]);
+      } else {
+        var gen = 0.0;
+      }
+
+      return {'count': 0.0,
+              'raw_capacity': cap * 60,
+              'generation': gen * 60,
+              'capacity': (cap - gen) * 60}
     }
 
     if (_.keys($scope.calced_day_estimates).length < 1){
@@ -211,8 +220,10 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
 
     var days = [];
     var today = moment();
-    days.push(get_tuple(today));
-    var fill = $scope.get_fill_for_date(today)[1];
+    days.push(get_tuple(today.format('ddd')));
+    _.last(days)['date'] = today;
+    var fill = $scope.get_fill_for_date(today, 'date', 'actual',
+        $scope.finished())[1];
     if (fill != null) {
       days[0]['count'] = fill;
     } else {
@@ -222,13 +233,12 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     var add_new_day = function(){
       var date = moment(_.last(days)['date']);
       date.add('days', 1);
-      days.push(get_tuple(date));
+      days.push(get_tuple(date.format('ddd')));
+      _.last(days)['date'] = date;
     }
 
-    var max_capacity = _.max(_.map(_.values($scope.calced_day_estimates),
-          function(x) {
-            return _.last(x[0]);
-          })) * 60;
+    var max_capacity = _.max(_.map(_.keys($scope.calced_day_estimates), function(x) {
+      return get_tuple(x)['capacity'];}));
 
     var capacity_left = function(x) {
       return x['capacity'] - x['count'];
@@ -383,29 +393,65 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     var chart_norm = new google.visualization.ScatterChart(document.getElementById('chart_div2'));
     chart_norm.draw(data_norm, options_norm);
 
-    var dat_abs_day = _.groupBy(_.map($scope.finished(),
+    var group_per_day = function(type, source, metric){
+      return _.groupBy(_.map(source,
+            function(x){
+              return [x[type].format('YYYY-MM-DD'),
+                      x[type].format('ddd'), x[metric] / 60.0];
+            }),
           function(x){
-            return [x.date.format('YYYY-MM-DD'),
-                    x.date.format('ddd'), x.actual / 60.0];
-          }),
-        function(x){
-          return x[0];
-        });
-    var dat_abs = [];
-    _.each(dat_abs_day, function(v, k){
-      dat_abs.push([v[0][1], _.reduce(_.map(v, function(x){ return x[2];}),
-          function(x,y){ return x + y;}, 0.0)]);
+            return x[0];
+          });
+    }
+
+    var calc_per_day = function(dat_abs_day){
+      var dat_abs = [];
+      _.each(dat_abs_day, function(v, k){
+        dat_abs.push([v[0][1], _.reduce(_.map(v, function(x){ return x[2];}),
+            function(x,y){ return x + y;}, 0.0)]);
+      });
+      return _.reduce(dat_abs, function(x, y) {return default_append(x, y[0], y[1])}, {});
+    }
+
+    var grouped = calc_per_day(group_per_day('date', $scope.finished(), 'actual'));
+    var group_stats_generated_temp = group_per_day('created_date', $scope.finished(), 'actual');
+    var group_stats_generated_unfin = group_per_day('created_date', $scope.unfinished(), 'realestimate');
+
+    _.each(_.keys(group_stats_generated_unfin), function(x) {
+      if (x in group_stats_generated_temp){
+        group_stats_generated_temp[x] = group_stats_generated_temp[x].concat(
+          group_stats_generated_unfin[x]);
+      } else {
+        group_stats_generated_temp[x] = group_stats_generated_unfin[x];
+      }
     });
-    var grouped = _.reduce(dat_abs, function(x, y) {return default_append(x, y[0], y[1])}, {});
-    var fill = $scope.get_fill_for_date(moment());
-    var group_stats = _.map(grouped, function(x, key) {
+
+    var group_stats_generated = calc_per_day(group_stats_generated_temp);
+
+    var today = moment();
+    var fill = $scope.get_fill_for_date(today, 'date', 'actual',
+        $scope.finished());
+    var fill_created = $scope.get_fill_for_date(today, 'created_date',
+        'actual', $scope.finished());
+    fill_created += $scope.get_fill_for_date(today, 'created_date',
+        'realestimate', $scope.unfinished());
+    var group_stats =  _.map(grouped, function(x, key) {
       var stat = _.map(stats(x), Math.floor);
+      if (key in group_stats_generated){
+        var last = Math.floor(_.last(stats(group_stats_generated[key])));
+      } else {
+        var last = null;
+      }
       if (key === fill[0]){
         var day_fill = Math.floor(fill[1] / 60);
+        var day_fill_created = Math.floor(fill_created[1] / 60);
       } else {
         var day_fill = null;
+        var day_fill_created = null;
       }
-      return [key].concat(stat.slice(0, -1)).concat([day_fill]).concat(stat.slice(-1))
+      return [key].concat(stat.slice(0, -1)).concat(
+        [day_fill]).concat([day_fill_created]).concat([last]).concat(
+          stat.slice(-1))
     });
 
     var data = new google.visualization.DataTable();
@@ -416,6 +462,8 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
     data.addColumn({id:'i2', type:'number', role:'interval'});
     data.addColumn({id:'i3', type:'number', role:'interval'});
     data.addColumn({id:'today', type:'number', role:'interval'});
+    data.addColumn({id:'today_created', type:'number', role:'interval'});
+    data.addColumn({id:'created', type:'number', role:'interval'});
     data.addColumn({id:'i0', type:'number', role:'interval'});
 
 
@@ -424,11 +472,16 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
       if (data !== undefined){
         return data;
       } else {
-        return [x, null, null, null, null, null, null, null];
+        return [x, null, null, null, null, null, null, null, null, null];
       }
     }));
 
     $scope.calced_day_estimates = _.groupBy(group_stats, function(x) { return x[0]; });
+    $scope.calced_generated_day_estimates = _.groupBy(_.map(group_stats_generated,
+        function(x, key){
+          return [key].concat(stats(x));
+        }), function(x) { return x[0]; });
+
     $scope.do_binpack();
 
     // The intervals data as narrow lines (useful for showing raw source
@@ -441,8 +494,11 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
         legend: 'none',
         width: 400,
         height: 300,
+        vAxis: {minValue: 0},
         intervals: {'style': 'bars',  'lineWidth': 1.5, 'barWidth': 0.3 },
-        interval: {today: {'color': '#F1CA3A', 'shortBarWidth': 1.2}}
+        interval: {today: {'color': '#F1CA3A', 'shortBarWidth': 1.2},
+                   today_created: {'color': '#FF0000', 'shortBarWidth': 0.8},
+                   created: {'color': '#00FF00', 'shortBarWidth': 1.0}}
     };
 
     var chart_lines = new google.visualization.LineChart(document.getElementById('chart_div3'));
@@ -512,6 +568,14 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
             $scope.tasks = resp.items;
             _.each($scope.tasks, function (x) { x.date = moment(x.modified,
                 'YYYY-MM-DDTHH:mm Z'); });
+            _.each($scope.tasks, function (x) {
+              if ('created' in x && x.created) {
+                x.created_date = moment(
+                  x.created, 'YYYY-MM-DDTHH:mm Z');
+              } else {
+                x.created_date = moment(
+                  x.modified, 'YYYY-MM-DDTHH:mm Z');
+              }});
             var task_ids = _.map($scope.tasks, function(x) {
               return String(x.task_id);
             });
@@ -740,6 +804,7 @@ myApp.controller('trackcontroller', function($scope, $timeout, $window, $locatio
               console.log(resp);
             } else{
               resp.date = moment(resp.modified, 'YYYY-MM-DDTHH:mm Z');
+              resp.created_date = moment(resp.created, 'YYYY-MM-DDTHH:mm Z');
               if (!_.contains(_.pluck($scope.concattasks(), 'task_id'),
                 String(resp.task_id))){
                 $scope.posted_tasks[String(resp.task_id)] = resp;
