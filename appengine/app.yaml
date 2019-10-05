@@ -1,5 +1,3 @@
-application: you-suck-at-time
-version: 1
 runtime: python27
 api_version: 1
 threadsafe: true
@@ -15,7 +13,7 @@ handlers:
 - url: /js
   static_dir: js
 
-- url: /_ah/spi/.*
+- url: /_ah/api/.*
   script: tasktimer_api.app
   secure: always
 
@@ -33,6 +31,6 @@ libraries:
 - name: jinja2
   version: '2.6'
 - name: pycrypto
-  version: latest
-- name: endpoints
-  version: 1.0
+  version: 2.6
+- name: ssl
+  version: 2.7.11
