@@ -1,0 +1,223 @@
+{
+  "basePath": "/_ah/api",
+  "consumes": [
+    "application/json"
+  ],
+  "definitions": {
+    "TasktimerApiTask": {
+      "properties": {
+        "actual": {
+          "format": "double",
+          "type": "number"
+        },
+        "created": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "estimate": {
+          "format": "double",
+          "type": "number"
+        },
+        "finished": {
+          "type": "boolean"
+        },
+        "modified": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "task_id": {
+          "format": "int64",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "TasktimerApiTaskCollection": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/definitions/TasktimerApiTask"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "TasktimerApiTaskOrder": {
+      "properties": {
+        "ordering": {
+          "items": {
+            "format": "int64",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "TasktimerApiUser": {
+      "properties": {
+        "last_seen_email": {
+          "type": "string"
+        },
+        "wants_email": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "host": "you-suck-at-time.appspot.com",
+  "info": {
+    "description": "TaskTimer API v4.",
+    "title": "tasktimer",
+    "version": "v4"
+  },
+  "paths": {
+    "/tasktimer/v4/task_order": {
+      "get": {
+        "operationId": "TaskTimerApi_getTaskOrder",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "A successful response",
+            "schema": {
+              "$ref": "#/definitions/TasktimerApiTaskOrder"
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "TaskTimerApi_setTaskOrder",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/TasktimerApiTaskOrder"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response"
+          }
+        }
+      }
+    },
+    "/tasktimer/v4/tasks": {
+      "get": {
+        "operationId": "TaskTimerApi_tasksList",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "A successful response",
+            "schema": {
+              "$ref": "#/definitions/TasktimerApiTaskCollection"
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "TaskTimerApi_createOrUpdateTask",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/TasktimerApiTask"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response",
+            "schema": {
+              "$ref": "#/definitions/TasktimerApiTask"
+            }
+          }
+        }
+      }
+    },
+    "/tasktimer/v4/tasks/{task_id}": {
+      "delete": {
+        "operationId": "TaskTimerApi_deleteTask",
+        "parameters": [
+          {
+            "format": "int64",
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response"
+          }
+        }
+      },
+      "get": {
+        "operationId": "TaskTimerApi_getTask",
+        "parameters": [
+          {
+            "format": "int64",
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response",
+            "schema": {
+              "$ref": "#/definitions/TasktimerApiTask"
+            }
+          }
+        }
+      }
+    },
+    "/tasktimer/v4/user": {
+      "post": {
+        "operationId": "TaskTimerApi_updateUser",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/TasktimerApiUser"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response"
+          }
+        }
+      }
+    }
+  },
+  "produces": [
+    "application/json"
+  ],
+  "schemes": [
+    "https"
+  ],
+  "securityDefinitions": {
+    "google_id_token": {
+      "authorizationUrl": "",
+      "flow": "implicit",
+      "type": "oauth2",
+      "x-google-issuer": "https://accounts.google.com",
+      "x-google-jwks_uri": "https://www.googleapis.com/oauth2/v3/certs"
+    }
+  },
+  "swagger": "2.0"
+}

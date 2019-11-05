@@ -78,6 +78,7 @@ class TaskCollection(messages.Message):
   items = messages.MessageField(Task, 1, repeated=True)
 
 ALLOWED_CLIENT_IDS = [
+    '471586205082-sc5invchv89fsn9a6k7cqo524npdpmlp.apps.googleusercontent.com',
     '471586205082.apps.googleusercontent.com',
     endpoints.API_EXPLORER_CLIENT_ID
 ]
